@@ -77,6 +77,10 @@ p { margin: 0; }
 .filtre span { color: var(--encre-2); font-weight: 400; margin-left: 5px; }
 .filtre[aria-pressed="true"] { background: var(--encre); color: var(--fond); border-color: var(--encre); }
 .filtre[aria-pressed="true"] span { color: inherit; opacity: 0.75; }
+.tri { display: flex; gap: 4px; overflow-x: auto; padding: 0 16px 12px; margin: 0 -16px; scrollbar-width: none; }
+.tri::-webkit-scrollbar { display: none; }
+.tri button { flex: none; min-height: 36px; padding: 0 12px; border-radius: 18px; font-size: 14px; font-weight: 600; color: var(--encre-2); }
+.tri button[aria-pressed="true"] { color: var(--lagon); background: var(--lagon-doux); }
 
 /* ---------- barre du bas ---------- */
 .barre {

@@ -2,7 +2,18 @@
 'use strict';
 
 const $app = document.getElementById('app');
-const S = { tab: 'deal', profile: '', data: null, scroll: {}, share: null };
+const S = { tab: 'deal', profile: '', data: null, scroll: {}, share: null, sort: {} };
+
+const SORTS = { '': 'Meilleures', recent: 'Récentes', price_asc: 'Prix croissant', price_desc: 'Prix décroissant' };
+function sortBar(tab) {
+  const cur = S.sort[tab] || '';
+  return `<div class="tri" role="group" aria-label="Trier">
+    ${Object.keys(SORTS).map((k) => `<button data-sort="${k}" aria-pressed="${cur === k}">${SORTS[k]}</button>`).join('')}
+  </div>`;
+}
+function bindSort(tab, rerender) {
+  $app.querySelectorAll('[data-sort]').forEach((b) => (b.onclick = () => { S.sort[tab] = b.dataset.sort; rerender(); }));
+}
 
 const KINDS = { appartement: 'Appartement', maison: 'Maison', terrain: 'Terrain', terrain_res: 'Terrain résidentiel', terrain_agri: 'Terrain agricole', autre: 'Autre bien', inconnu: 'Bien' };
 const STATUTS = { fav: 'Gardée', contacted: 'Contactée', visited: 'Visitée', rejected: 'Écartée' };
@@ -23,6 +34,7 @@ const ICONS = {
 
 // ------------------------------------------------------------------ outils
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const usd = (n) => (+n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' $';
 const nb = (n) => Math.round(n).toLocaleString('fr-FR').replace(/ | /g, ' ');
 
 function prix(p) {
@@ -150,7 +162,7 @@ async function renderFeed(tab) {
   if (!S.data || S.data._tab !== tab) shell(tab, `<div class="tete"><div class="tete-ligne"><h1>${TABS[tab]}</h1></div></div><div class="charge">Chargement…</div>`);
   let d;
   try {
-    d = await api('list', { params: { tab, profile: S.profile } });
+    d = await api('list', { params: { tab, profile: S.profile, sort: S.sort[tab] || '' } });
   } catch (e) {
     if (!document.querySelector('.porte')) $app.querySelector('.charge, .liste, .vide')?.insertAdjacentHTML('beforebegin', `<p class="vide">${esc(e.message)}</p>`);
     return;
@@ -188,8 +200,10 @@ async function renderFeed(tab) {
       <div class="tete-ligne"><h1>${TABS[tab]}</h1><button class="maj" id="maj" title="Lancer une collecte">Collecte <b>${heure(d.last_run)}</b></button></div>
       <p class="muet petit" style="margin-top:4px">${sub}</p>
       ${chips}
+      ${sortBar(tab)}
     </div>
     ${body}`);
+  bindSort(tab, () => renderFeed(tab));
 
   $app.querySelectorAll('.filtre').forEach((b) => (b.onclick = () => { S.profile = b.dataset.p; renderFeed(tab); }));
   $app.querySelectorAll('[data-open]').forEach((b) => (b.onclick = () => { if (b.dataset.moved) return; S.scroll[tab] = scrollY; location.hash = '#/a/' + b.dataset.open; }));
@@ -346,9 +360,11 @@ function renderPlus() {
 }
 
 async function renderSimpleList(tab, title, empty) {
-  shell('plus', `<div class="tete"><div class="tete-ligne"><h1>${title}</h1></div></div><div class="charge">Chargement…</div>`);
-  const d = await api('list', { params: { tab } });
-  $app.querySelector('.charge').outerHTML = d.items.length ? `<div class="liste" style="margin-top:12px">${d.items.map(card).join('')}</div>` : `<div class="vide"><p>${empty}</p></div>`;
+  const head = `<div class="tete"><div class="tete-ligne"><h1>${title}</h1></div>${sortBar(tab)}</div>`;
+  if (!$app.querySelector('.tri')) shell('plus', head + '<div class="charge">Chargement…</div>');
+  const d = await api('list', { params: { tab, sort: S.sort[tab] || '' } });
+  shell('plus', head + (d.items.length ? `<div class="liste">${d.items.map(card).join('')}</div>` : `<div class="vide"><p>${empty}</p></div>`));
+  bindSort(tab, () => renderSimpleList(tab, title, empty));
   $app.querySelectorAll('[data-open]').forEach((b) => (b.onclick = () => (location.hash = '#/a/' + b.dataset.open)));
 }
 
@@ -402,9 +418,9 @@ async function renderSources() {
       <div class="carte">${group('site').map(line).join('') || '<p class="muet">Aucun site.</p>'}</div>
       <h2>Facebook</h2>
       <div class="carte">
-        <p><span class="voyant ${fb.ready ? (fb.error ? 'souci' : 'ok') : ''}"></span>${fb.ready ? `Branché. ${fb.used} publications lues ce mois sur ${fb.cap} autorisées.` : 'Pas encore branché.'}</p>
+        <p><span class="voyant ${fb.ready ? (fb.error ? 'souci' : 'ok') : ''}"></span>${fb.ready ? `Branché. ${usd(fb.spent)} dépensés ce mois sur ${usd(fb.cap_usd)} autorisés, ${fb.posts_month} publications lues.` : 'Pas encore branché.'}</p>
         ${fb.error ? `<p class="aide"><span class="souci" style="color:var(--canne)">${esc(fb.error)}</span></p>` : ''}
-        ${fb.ready ? `<div class="jauge"><i style="width:${Math.min(100, (fb.used / Math.max(1, fb.cap)) * 100)}%"></i></div>` : '<p class="aide">La lecture automatique des groupes et pages publics demande un jeton Apify gratuit. <a href="#/reglages">Le brancher dans les réglages</a>.</p>'}
+        ${fb.ready ? `<div class="jauge"><i style="width:${Math.min(100, (fb.spent / Math.max(0.01, fb.cap_usd)) * 100)}%"></i></div>` : '<p class="aide">La lecture automatique des groupes et pages publics demande un jeton Apify gratuit. <a href="#/reglages">Le brancher dans les réglages</a>.</p>'}
       </div>
       <h2>Groupes publics (${group('fb_group').length})</h2>
       <div class="carte">${group('fb_group').map(line).join('')}</div>
@@ -476,7 +492,7 @@ async function renderSettings() {
 
       <h2>Facebook automatique</h2>
       <form class="carte" id="apify">
-        <p><span class="voyant ${d.apify.set ? (d.apify.error ? 'souci' : 'ok') : ''}"></span>${d.apify.set ? `Branché, ${d.apify.used} publications lues ce mois sur ${d.apify.cap}.` : 'Pas encore branché.'}</p>
+        <p><span class="voyant ${d.apify.set ? (d.apify.error ? 'souci' : 'ok') : ''}"></span>${d.apify.set ? `Branché. ${usd(d.apify.spent)} dépensés sur ${usd(d.apify.cap_usd)} ce mois, ${d.apify.posts_month} publications lues.` : 'Pas encore branché.'}</p>
         ${d.apify.error ? `<p class="aide" style="color:var(--canne)">${esc(d.apify.error)}</p>` : ''}
         <p class="aide">Les groupes et pages publics sont lus par Apify, sans jamais utiliser ton compte Facebook. Le forfait gratuit suffit pour démarrer.</p>
         <ol class="etapes petit">
@@ -486,9 +502,9 @@ async function renderSettings() {
         </ol>
         <label for="atok">Jeton Apify</label>
         <input id="atok" type="password" autocomplete="off" placeholder="${d.apify.set ? 'Déjà enregistré. Colle un nouveau jeton pour le remplacer.' : 'apify_api_…'}">
-        <label for="acap">Publications lues par mois, au maximum</label>
-        <input id="acap" type="number" inputmode="numeric" min="0" step="100" value="${d.apify.cap}">
-        <p class="aide">C'est ton garde-fou de dépense. 1 200 reste dans le crédit gratuit de 5 $ par mois ; une fois atteint, Facebook n'est plus lu jusqu'au mois suivant, les sites continuent.</p>
+        <label for="acap">Dépense maximale par mois, en dollars</label>
+        <input id="acap" type="number" inputmode="decimal" min="0" step="0.5" value="${d.apify.cap_usd}">
+        <p class="aide">Le compte gratuit Apify offre 5 $ par mois ; 4,50 $ garde une marge. L'application lit ta dépense réelle chez Apify avant chaque lancement et répartit le reste sur les jours du mois. Une fois le plafond atteint, Facebook attend le mois suivant ; les sites continuent.</p>
         <label for="akw">Recherches lancées dans les groupes</label>
         <textarea id="akw" style="min-height:130px">${esc(d.fb_keywords)}</textarea>
         <p class="aide">Une par ligne. Facebook est lu deux fois par jour : recherches le matin, pages d'agents ou groupes suivis le soir (heure de Maurice 8 h et 19 h).</p>
@@ -531,7 +547,7 @@ async function renderSettings() {
   });
   save('budgets', () => ({ profiles: Object.fromEntries(Object.keys(P).map((k) => [k, +document.getElementById('b_' + k).value])) }), 'Budgets enregistrés, annonces reclassées');
   save('apify', () => {
-    const b = { apify_month_cap: +document.getElementById('acap').value, fb_keywords: document.getElementById('akw').value };
+    const b = { apify_month_usd: +document.getElementById('acap').value, fb_keywords: document.getElementById('akw').value };
     const t = document.getElementById('atok').value.trim();
     if (t) b.apify_token = t;
     return b;

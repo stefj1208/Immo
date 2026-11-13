@@ -37,10 +37,51 @@ final class Apify
         return array_merge(self::DEFAULT_ACTORS, array_filter(setting_json('apify_actors')));
     }
 
-    public static function monthKey(): string { return 'apify_used_' . date('Ym'); }
-    public static function cap(): int { return (int)setting('apify_month_cap', '1200'); }
-    public static function used(): int { return (int)setting(self::monthKey(), '0'); }
-    public static function remaining(): int { return max(0, self::cap() - self::used()); }
+    /**
+     * Tarifs de l'offre gratuite Apify (novembre 2026), utilisés pour dimensionner chaque lancement.
+     * start : frais fixes par lancement (à 1 Go de mémoire) ; item : prix d'une publication.
+     */
+    public const COSTS = [
+        'search' => ['start' => 0.03, 'item' => 0.005],
+        'groups' => ['start' => 0.001, 'item' => 0.005],
+        'pages' => ['start' => 0.03, 'item' => 0.006],   // tarif non publié : estimation prudente
+    ];
+
+    public static function capUsd(): float { return max(0.0, (float)setting('apify_month_usd', '4.5')); }
+
+    /** Dépense réelle du cycle en cours, lue sur le compte Apify (mise en cache 15 min). */
+    public static function account(bool $refresh = false): array
+    {
+        $cached = setting_json('apify_account');
+        if (!$refresh && $cached && ($cached['at'] ?? 0) > now() - 900) return $cached;
+        $r = self::api('/users/me/limits', ['timeout' => 20]);
+        $d = $r['data']['data'] ?? null;
+        if (!is_array($d)) return $cached ?: ['spent' => self::estimatedSpend(), 'end' => strtotime('first day of next month 00:00'), 'at' => 0];
+        $acc = [
+            'spent' => round((float)($d['current']['monthlyUsageUsd'] ?? 0), 3),
+            'limit' => isset($d['limits']['maxMonthlyUsageUsd']) ? (float)$d['limits']['maxMonthlyUsageUsd'] : null,
+            'end' => strtotime((string)($d['monthlyUsageCycle']['endAt'] ?? '')) ?: strtotime('first day of next month 00:00'),
+            'at' => now(),
+        ];
+        set_setting('apify_account', json_encode($acc));
+        return $acc;
+    }
+
+    /** Estimation locale, si le compte Apify ne répond pas. */
+    private static function estimatedSpend(): float
+    {
+        $sum = 0.0;
+        foreach (Db::all('SELECT recipe, items FROM apify_runs WHERE started_at >= ?', [strtotime('first day of this month 00:00')]) as $r) {
+            $c = self::COSTS[$r['recipe']] ?? self::COSTS['pages'];
+            $sum += $c['start'] + $c['item'] * (int)$r['items'];
+        }
+        return $sum;
+    }
+
+    public static function remainingUsd(): float
+    {
+        return max(0.0, self::capUsd() - (float)(self::account()['spent'] ?? 0));
+    }
 
     public static function tick(bool $force = false): array
     {
@@ -59,10 +100,11 @@ final class Apify
     // ---------------------------------------------------------------- lancement
 
     /**
-     * Deux passages par jour, un seul lancement Apify chacun :
-     *  - le matin, recherche par mots-clés dans tous les groupes publics (le meilleur rapport signal / coût) ;
-     *  - le soir, un jour sur deux les pages d'agents, l'autre jour le fil des groupes suivis.
-     * Le budget du mois est réparti également sur les passages restants.
+     * Lancements regroupés, deux par jour au plus :
+     *  - 8 h (Maurice) : UNE recherche avec tous les mots-clés du jour, dans tous les groupes publics ;
+     *  - 19 h : un jour sur deux le fil des groupes suivis (lancement quasi gratuit), l'autre jour les pages d'agents.
+     * Le budget restant du mois est réparti sur les jours restants ; 70 % pour la recherche du matin.
+     * Un lancement trop petit pour être utile est sauté : son budget reste disponible les jours suivants.
      */
     private static function startDue(bool $force): array
     {
@@ -72,44 +114,61 @@ final class Apify
         $slot = null;
         foreach ($hours as $i => $hh) if ($h >= $hh) $slot = $i;
         if ($slot === null && !$force) return [];
-        $slotKey = date('Ymd') . '-' . ($slot ?? 'x');
+        $slot ??= 0;
+        $slotKey = date('Ymd') . '-' . $slot;
         if (!$force && setting('fb_last_slot') === $slotKey) return [];
         if (Db::val("SELECT COUNT(*) FROM apify_runs WHERE status IN ('READY', 'RUNNING')") > 0) return [];
-
-        $remaining = self::remaining();
         set_setting('fb_last_slot', $slotKey);
-        if ($remaining < 8) return ['plafond mensuel atteint'];
-        $daysLeft = max(1, (int)date('t') - (int)date('j') + 1);
-        $budget = max(8, (int)floor($remaining / ($daysLeft * count($hours))));
+
+        $acc = self::account(true);
+        $remaining = max(0.0, self::capUsd() - (float)$acc['spent']);
+        if ($acc['limit'] !== null) $remaining = min($remaining, max(0.0, $acc['limit'] - (float)$acc['spent']));
+        $daysLeft = max(1, (int)ceil(((int)$acc['end'] - now()) / 86400));
+        $daily = $remaining / $daysLeft;
         $actors = self::actors();
 
-        if (($slot ?? 0) === 0) {
-            $nKw = max(2, min(6, intdiv($budget, 4)));
-            $kws = self::rotate('fb_kw_cursor', self::keywords(), $nKw);
+        if ($slot === 0) {
+            $budget = $daily * (count($hours) > 1 ? 0.7 : 1.0);
+            $n = self::itemsFor('search', $budget);
+            if ($n < 6) return ['budget insuffisant aujourd\'hui'];
+            $kws = self::keywords();
+            $nKw = min(count($kws), max(1, intdiv($n, 3)));     // au moins 3 publications par mot-clé
+            $kws = self::rotate('fb_kw_cursor', $kws, $nKw);
             return array_values(array_filter([self::start('search', $actors['search'], [
                 'keywords' => $kws,
                 'afterDate' => '2 days',
-                'maxPosts' => max(3, intdiv($budget, $nKw)),
+                'maxPosts' => max(3, intdiv($n, $nKw)),
                 'countryCode' => 'mu',
-            ], $budget, ['keywords' => $kws])]));
+            ], $n, $budget, ['keywords' => $kws])]));
         }
 
+        $budget = $daily * 0.3 * 2;   // un lancement tous les deux jours pour chaque type
         if ((int)date('z') % 2 === 0) {
-            $pages = self::rotate('fb_page_cursor', self::sourceUrls('fb_page'), max(3, min(12, intdiv($budget, 2))));
+            $n = self::itemsFor('pages', $budget);
+            $pages = $n >= 6 ? self::rotate('fb_page_cursor', self::sourceUrls('fb_page'), max(2, min(12, intdiv($n, 2)))) : [];
             if ($pages) return array_values(array_filter([self::start('pages', $actors['pages'], [
                 'startUrls' => array_map(fn($u) => ['url' => $u], $pages),
-                'resultsLimit' => max(1, intdiv($budget, count($pages))),
-                'onlyPostsNewerThan' => '3 days',
-            ], $budget, ['urls' => $pages])]));
+                'resultsLimit' => max(1, intdiv($n, count($pages))),
+            ], $n, $budget, ['urls' => $pages])]));
         }
-        $groups = self::rotate('fb_group_cursor', self::sourceUrls('fb_group'), max(1, min(5, intdiv($budget, 6))));
+        $n = self::itemsFor('groups', $budget);
+        if ($n < 6) return ['budget insuffisant aujourd\'hui'];
+        $groups = self::rotate('fb_group_cursor', self::sourceUrls('fb_group'), max(1, min(6, intdiv($n, 5))));
         if (!$groups) return [];
+        // Pas de filtre par date côté Apify : il est facturé en plus. Le fil chronologique suffit,
+        // et les publications déjà connues sont ignorées à l'arrivée.
         return array_values(array_filter([self::start('groups', $actors['groups'], [
             'startUrls' => array_map(fn($u) => ['url' => $u], $groups),
-            'resultsLimit' => max(4, intdiv($budget, count($groups))),
+            'resultsLimit' => max(4, intdiv($n, count($groups))),
             'viewOption' => 'CHRONOLOGICAL',
-            'onlyPostsNewerThan' => '2 days',
-        ], $budget, ['urls' => $groups])]));
+        ], $n, $budget, ['urls' => $groups])]));
+    }
+
+    /** Nombre de publications que l'on peut se payer avec ce budget, frais de lancement déduits. */
+    private static function itemsFor(string $recipe, float $usd): int
+    {
+        $c = self::COSTS[$recipe];
+        return max(0, (int)floor(($usd - $c['start']) / $c['item']));
     }
 
     public static function keywords(): array
@@ -136,9 +195,15 @@ final class Apify
         return $out;
     }
 
-    private static function start(string $recipe, string $actor, array $input, int $maxItems, array $meta): ?string
+    private static function start(string $recipe, string $actor, array $input, int $maxItems, float $usd, array $meta): ?string
     {
-        $r = self::api('/acts/' . rawurlencode($actor) . '/runs?maxItems=' . max(1, $maxItems) . '&maxTotalChargeUsd=0.25&timeout=600', ['body' => $input]);
+        $cap = number_format(max(0.02, $usd * 1.1), 3, '.', '');
+        // 1 Go de mémoire : les frais de lancement sont comptés par Go.
+        $base = '/acts/' . rawurlencode($actor) . '/runs?maxItems=' . max(1, $maxItems) . '&maxTotalChargeUsd=' . $cap . '&timeout=600';
+        $r = self::api($base . '&memory=1024', ['body' => $input]);
+        if ($r['code'] === 400 && str_contains(strtolower((string)($r['data']['error']['message'] ?? '')), 'memory')) {
+            $r = self::api($base, ['body' => $input]);   // l'acteur exige plus de mémoire
+        }
         if ($r['code'] >= 300 || empty($r['data']['data']['id'])) {
             $msg = "$recipe : " . ($r['data']['error']['message'] ?? ('HTTP ' . $r['code'] . ' ' . $r['error']));
             set_setting('apify_error', Text::cut($msg, 220) . ' (' . date('d/m H:i') . ')');
@@ -146,8 +211,8 @@ final class Apify
         }
         $d = $r['data']['data'];
         Db::run('INSERT OR REPLACE INTO apify_runs(run_id, recipe, dataset_id, meta, started_at, status) VALUES(?,?,?,?,?,?)',
-            [$d['id'], $recipe, $d['defaultDatasetId'] ?? '', json_encode($meta + ['max' => $maxItems], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), now(), $d['status'] ?? 'RUNNING']);
-        return $recipe;
+            [$d['id'], $recipe, $d['defaultDatasetId'] ?? '', json_encode($meta + ['max' => $maxItems, 'usd' => round($usd, 3)], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), now(), $d['status'] ?? 'RUNNING']);
+        return $recipe . ' (' . $maxItems . ' publications max, ' . number_format($usd, 2) . ' $)';
     }
 
     // --------------------------------------------------------------- récolte
@@ -172,7 +237,6 @@ final class Apify
                 $ir = self::api('/datasets/' . $dataset . '/items?clean=true&format=json&limit=1000', ['timeout' => 60]);
                 if (is_array($ir['data']) && array_is_list($ir['data'])) $items = $ir['data'];
             }
-            set_setting(self::monthKey(), (string)(self::used() + count($items)));
             if ($items) set_setting('apify_sample_' . $run['recipe'], Text::cut(json_encode(array_keys((array)$items[0])), 600));
             $kind = $run['recipe'] === 'pages' ? 'fb_page' : 'fb_group';
             foreach ($items as $item) {
@@ -267,8 +331,10 @@ final class Apify
     {
         return [
             'ready' => self::ready(),
-            'used' => self::used(),
-            'cap' => self::cap(),
+            'spent' => self::ready() ? (float)(self::account()['spent'] ?? 0) : 0.0,
+            'cap_usd' => self::capUsd(),
+            'cycle_end' => self::ready() ? (int)(self::account()['end'] ?? 0) : null,
+            'posts_month' => (int)Db::val('SELECT COALESCE(SUM(items), 0) FROM apify_runs WHERE started_at >= ?', [strtotime('first day of this month 00:00')]),
             'error' => setting('apify_error'),
             'last' => Db::all('SELECT recipe, status, items, started_at FROM apify_runs ORDER BY started_at DESC LIMIT 6'),
             'hours' => setting('fb_hours', '8,19'),

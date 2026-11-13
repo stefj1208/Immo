@@ -20,7 +20,7 @@ final class Sources
     {
         $n = 0;
         foreach (self::sites() as $s) {
-            $cfg = ['lists' => $s['lists'], 'link' => $s['link'], 'exclude' => $s['exclude'] ?? '', 'seller' => $s['seller'] ?? null, 'pages' => $s['pages'] ?? 1, 'page_param' => $s['page_param'] ?? null];
+            $cfg = ['lists' => $s['lists'], 'link' => $s['link'], 'exclude' => $s['exclude'] ?? '', 'seller' => $s['seller'] ?? null, 'pages' => $s['pages'] ?? 1, 'page_param' => $s['page_param'] ?? null, 'page_offset' => $s['page_offset'] ?? 0];
             $n += self::upsert('site', $s['name'], $s['lists'][0], $cfg, $s['every'] ?? 60, $s['enabled'] ?? 1, true);
         }
         // Sites retirés ou désactivés dans la liste de départ (ceux que tu as ajoutés toi-même ne bougent pas).

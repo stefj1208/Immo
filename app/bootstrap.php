@@ -14,7 +14,7 @@ error_reporting(E_ALL & ~E_DEPRECATED);
 ini_set('display_errors', PHP_SAPI === 'cli' ? '1' : '0');
 
 define('ROOT', dirname(__DIR__));
-define('APP_VERSION', '2.0.0');
+define('APP_VERSION', '2.1');
 
 /** Dossier des données : hors de la racine web quand c'est possible. */
 function data_dir(): string

@@ -117,7 +117,13 @@ switch ($a) {
             $where[] = '(title LIKE ? OR text LIKE ? OR zone LIKE ?)';
             array_push($args, "%$q%", "%$q%", "%$q%");
         }
-        $order = $tab === 'follow' ? 'last_seen DESC' : (($_GET['sort'] ?? '') === 'recent' ? 'first_seen DESC' : 'seen ASC, score DESC, first_seen DESC');
+        $order = match ((string)($_GET['sort'] ?? '')) {
+            'recent' => 'first_seen DESC',
+            'price_asc' => 'price IS NULL, price ASC, score DESC',
+            'price_desc' => 'price IS NULL, price DESC, score DESC',
+            'score' => 'score DESC, first_seen DESC',
+            default => $tab === 'follow' ? 'last_seen DESC' : ($tab === 'other' || $tab === 'rejected' ? 'first_seen DESC' : 'seen ASC, score DESC, first_seen DESC'),
+        };
         $rows = Db::all('SELECT * FROM listings WHERE ' . implode(' AND ', $where) . " ORDER BY $order LIMIT 150", $args);
 
         $counts = ['deal' => 0, 'check' => 0, 'follow' => 0, 'deal_new' => 0];
@@ -209,8 +215,14 @@ switch ($a) {
             $r = Http::get($url);
             if ($r['code'] !== 200) fail('Cette page ne répond pas (HTTP ' . $r['code'] . ').');
             $guess = guess_link_pattern($r['body'], $url);
-            if (!$guess) fail('Je ne trouve pas de liste d\'annonces sur cette page. Donne l\'adresse de la page qui liste les biens à vendre.');
+            if (!$guess) fail('Je ne trouve pas de liens vers des fiches d\'annonce sur cette page (' . Text::cut((string)parse_url($url, PHP_URL_HOST), 40) . '). Le site les charge peut-être après coup. Essaie l\'adresse d\'une page qui affiche déjà la liste des biens.');
             $cfg = ['lists' => [$url], 'link' => $guess['regex'], 'exclude' => '', 'pages' => 1];
+            // Liste paginée : on lit aussi les pages suivantes (« page » commence à 0 sur ce type de site).
+            if (preg_match('~[?&]page=\d~', $r['body']) || str_contains($url, 'action=list')) {
+                $cfg['pages'] = 3;
+                $cfg['page_param'] = 'page';
+                if (preg_match('~index\.php\?page=1&(amp;)?action=list~', $r['body'])) $cfg['page_offset'] = -1;
+            }
             if ($name === '') $name = (string)preg_replace('~^www\.~', '', (string)parse_url($url, PHP_URL_HOST));
         }
         if ($name === '') $name = $kind === 'fb_group' ? 'Groupe ' . basename($url) : 'Page ' . basename($url);
@@ -238,7 +250,7 @@ switch ($a) {
             }
             if (isset($in['notify_min'])) set_setting('notify_min', (string)max(30, min(95, (int)$in['notify_min'])));
             if (isset($in['quiet_hours']) && preg_match('~^\d{1,2}-\d{1,2}$~', (string)$in['quiet_hours'])) set_setting('quiet_hours', (string)$in['quiet_hours']);
-            if (isset($in['apify_month_cap'])) set_setting('apify_month_cap', (string)max(0, min(100000, (int)$in['apify_month_cap'])));
+            if (isset($in['apify_month_usd'])) set_setting('apify_month_usd', (string)round(max(0, min(500, (float)$in['apify_month_usd'])), 2));
             if (isset($in['fb_keywords'])) set_setting('fb_keywords', Text::cut(trim((string)$in['fb_keywords']), 4000) ?: null);
             if (!empty($in['gemini_key'])) { set_setting('gemini_error', null); Db::run('UPDATE listings SET ai_done = 0 WHERE ai_done = 2'); }
         }
@@ -251,7 +263,8 @@ switch ($a) {
             'fb_keywords' => implode("\n", Apify::keywords()),
             'push_devices' => (int)Db::val('SELECT COUNT(*) FROM push_subs'),
             'push_error' => setting('push_error'),
-            'version' => APP_VERSION,
+            'version' => APP_VERSION . ' · ' . substr(trim((string)@file_get_contents(ROOT . '/.git/refs/heads/main')), 0, 7),
+            'self_update' => setting('self_update'),
         ]);
     }
 
@@ -301,27 +314,54 @@ switch ($a) {
         fail('Action inconnue.', 404);
 }
 
-/** Devine le motif des fiches d'annonce sur une page de liste : la forme d'adresse la plus répétée. */
+/**
+ * Devine le motif des fiches d'annonce sur une page de liste.
+ * Chaque adresse est réduite à une forme (« /fr/annonces/offre/{x}/bien/{n}/{x}.html ») ;
+ * la forme la plus répétée, qui contient un identifiant ou un long intitulé, est celle des fiches.
+ */
 function guess_link_pattern(string $html, string $base): ?array
 {
-    $host = parse_url($base, PHP_URL_HOST);
-    $shapes = [];
+    $host = (string)parse_url($base, PHP_URL_HOST);
+    if (preg_match('~<base\b[^>]*\bhref\s*=\s*(["\'])(.*?)\1~is', $html, $b) && ($nb = Http::absolute($b[2], $base))) $base = $nb;
     if (!preg_match_all('~<a\b[^>]*?\bhref\s*=\s*(["\'])(.*?)\1~is', $html, $m)) return null;
+    $groups = [];
     foreach (array_unique($m[2]) as $h) {
         $abs = Http::absolute($h, $base);
-        if (!$abs || parse_url($abs, PHP_URL_HOST) !== $host) continue;
-        $path = (string)parse_url($abs, PHP_URL_PATH);
-        if (substr_count(trim($path, '/'), '/') < 1 && !preg_match('~\d{3,}~', $path)) continue;
-        if (!preg_match('~\d{3,}|[a-z0-9]+(-[a-z0-9]+){3,}~i', $path)) continue;
-        $parts = explode('/', trim($path, '/'));
-        $last = array_pop($parts);
-        $shape = implode('/', $parts);
-        $shapes[$shape][] = $abs;
+        if (!$abs || preg_replace('~^www\.~', '', (string)parse_url($abs, PHP_URL_HOST)) !== preg_replace('~^www\.~', '', $host)) continue;
+        $path = rtrim((string)parse_url($abs, PHP_URL_PATH), '/');
+        if ($path === '' || preg_match('~\.(jpe?g|png|webp|pdf|css|js)$~i', $path)) continue;
+        $segs = explode('/', ltrim($path, '/'));
+        $last = end($segs);
+        // Une fiche a un identifiant numérique ou un long intitulé dans son dernier segment.
+        if (!preg_match('~\d{3,}|[a-z0-9]+(-[a-z0-9]+){3,}~i', $last)) continue;
+        $shape = [];
+        foreach ($segs as $i => $seg) {
+            if (preg_match('~^\d+$~', $seg)) $shape[] = '{n}';
+            elseif ($i === count($segs) - 1) $shape[] = '{x}' . (preg_match('~\.(html?|php)$~i', $seg, $e) ? $e[0] : '');
+            else $shape[] = $seg;
+        }
+        $groups[count($segs) . '|' . ($segs[0] ?? '')][] = ['shape' => $shape, 'url' => $abs];
     }
-    if (!$shapes) return null;
-    uasort($shapes, fn($x, $y) => count($y) <=> count($x));
-    $shape = array_key_first($shapes);
-    if (count($shapes[$shape]) < 4) return null;
-    $prefix = preg_quote((string)$host, '~') . '/' . ($shape !== '' ? preg_quote($shape, '~') . '/' : '');
-    return ['regex' => $prefix . '[^/?#]+/?$', 'count' => count($shapes[$shape])];
+    $best = null;
+    foreach ($groups as $list) {
+        if (count($list) < 4) continue;
+        // Les segments qui varient d'une fiche à l'autre (ville, catégorie) deviennent libres.
+        $n = count($list[0]['shape']);
+        $rx = [];
+        for ($i = 0; $i < $n; $i++) {
+            $vals = array_unique(array_map(fn($x) => $x['shape'][$i], $list));
+            if (count($vals) === 1) {
+                $v = $vals[0];
+                $rx[] = $v === '{n}' ? '\\d+' : (str_starts_with($v, '{x}') ? '[^/?#]+' . preg_quote(substr($v, 3), '~') : preg_quote($v, '~'));
+            } else {
+                $rx[] = '[^/?#]+';
+            }
+        }
+        // Un motif entièrement libre n'apprend rien : il faut au moins un segment fixe.
+        if (!array_filter($rx, fn($r) => $r !== '[^/?#]+')) continue;
+        if (!$best || count($list) > $best['count']) {
+            $best = ['regex' => preg_quote(preg_replace('~^www\.~', '', $host), '~') . '/' . implode('/', $rx) . '/?$', 'count' => count($list)];
+        }
+    }
+    return $best;
 }

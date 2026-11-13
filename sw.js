@@ -1,6 +1,6 @@
 /* Immo Maurice — hors ligne et notifications */
-const CACHE = 'immo-v4';
-const SHELL = ['./', 'index.html', 'assets/app.css?v=3', 'assets/app.js?v=3', 'assets/icon-192.png', 'manifest.webmanifest'];
+const CACHE = 'immo-v5';
+const SHELL = ['./', 'index.html', 'assets/app.css?v=4', 'assets/app.js?v=4', 'assets/icon-192.png', 'manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

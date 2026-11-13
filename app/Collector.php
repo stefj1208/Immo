@@ -12,6 +12,7 @@ final class Collector
         if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) return ['skipped' => 'un passage est déjà en cours'];
 
         $start = microtime(true);
+        self::selfUpdate();
         // Après une mise à jour, la liste des sources de départ est resynchronisée toute seule.
         $sig = md5_file(__DIR__ . '/sources.sites.php') . md5_file(__DIR__ . '/sources.facebook.php');
         if (setting('seed_sig') !== $sig) { Sources::seed(); set_setting('seed_sig', $sig); }
@@ -51,6 +52,24 @@ final class Collector
         return $summary;
     }
 
+    /**
+     * Récupère la dernière version depuis GitHub (au plus une fois par heure), sans intervention.
+     * Sans effet si l'hébergement n'autorise pas les commandes système.
+     */
+    private static function selfUpdate(): void
+    {
+        if (!is_dir(ROOT . '/.git') || (int)setting('self_update_at', '0') > now() - 3600) return;
+        set_setting('self_update_at', (string)now());
+        if (!function_exists('shell_exec') || in_array('shell_exec', array_map('trim', explode(',', (string)ini_get('disable_functions'))), true)) {
+            set_setting('self_update', 'commandes système désactivées');
+            return;
+        }
+        $before = trim((string)@file_get_contents(ROOT . '/.git/refs/heads/main'));
+        $out = (string)shell_exec('cd ' . escapeshellarg(ROOT) . ' && git pull --ff-only -q origin main 2>&1');
+        $after = trim((string)@file_get_contents(ROOT . '/.git/refs/heads/main'));
+        set_setting('self_update', date('d/m H:i') . ' ' . substr($after, 0, 7) . ($before !== $after ? ' (mis à jour)' : '') . ($out !== '' ? ' · ' . Text::cut(trim($out), 160) : ''));
+    }
+
     /** Lit les pages de liste d'un site, puis les fiches jamais vues. */
     public static function runSite(array $src, float $deadline): array
     {
@@ -62,7 +81,10 @@ final class Collector
             for ($p = 2; $p <= (int)($cfg['pages'] ?? 1); $p++) {
                 if (!empty($cfg['page_param'])) {
                     $pp = $cfg['page_param'];
-                    $listUrls[] = str_contains($pp, '%d') ? rtrim($u, '/') . sprintf($pp, $p) : $u . (str_contains($u, '?') ? '&' : '?') . $pp . '=' . $p;
+                    $v = $p + (int)($cfg['page_offset'] ?? 0);
+                    $base = (string)preg_replace('~([?&])' . preg_quote($pp, '~') . '=\d+&?~', '$1', $u);
+                    $base = rtrim($base, '?&');
+                    $listUrls[] = str_contains($pp, '%d') ? rtrim($u, '/') . sprintf($pp, $v) : $base . (str_contains($base, '?') ? '&' : '?') . $pp . '=' . $v;
                 }
             }
         }

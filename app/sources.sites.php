@@ -37,7 +37,7 @@ return [
             'https://www.pamgolding.mu/fr/terrains-a-vendre-ile-maurice.html',
         ],
         'link' => 'pamgolding\.mu/fr/annonces-immobilieres/offre/[^/]+/bien/\d+/',
-        'pages' => 2, 'page_param' => 'page',
+        'pages' => 2, 'page_param' => 'page', 'page_offset' => -1,
     ],
     [
         'name' => 'Park Lane',
@@ -46,7 +46,13 @@ return [
             'https://parklane.mu/index.php?action=list&ctypmandatmeta=v&cregionmeta=nord&clangue=en&search_currency=MUR&cdevise=MUR',
         ],
         'link' => 'parklane\.mu/en/realestate-adverts/offer/[^/]+/property/\d+/',
-        'pages' => 2, 'page_param' => 'page',
+        'pages' => 2, 'page_param' => 'page', 'page_offset' => -1,
+    ],
+    [
+        'name' => 'Harris Properties',
+        'lists' => ['https://harris-properties.com/index.php?action=list&ctypmandatmeta=v&orderby=bien.dcre+desc'],
+        'link' => 'harris-properties\.com/fr/annonces-immobilieres/offre/[^/]+/bien/\d+/',
+        'pages' => 4, 'page_param' => 'page', 'page_offset' => -1,
     ],
     [
         'name' => 'FM Immobilier',
@@ -55,7 +61,7 @@ return [
             'https://www.fmimmobilier.com/index.php?action=list&cregionmeta=nord&ctypmandatmeta=v',
         ],
         'link' => 'fmimmobilier\.com/fr/annonces-immobilieres/offre/[^/]+/bien/\d+/',
-        'pages' => 3, 'page_param' => 'page',
+        'pages' => 3, 'page_param' => 'page', 'page_offset' => -1,
     ],
     [
         'name' => 'Primmo',
