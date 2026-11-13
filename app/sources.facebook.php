@@ -1,0 +1,70 @@
+<?php
+// Groupes et pages Facebook publics repérés. tier 1 = les plus utiles, lus en priorité.
+$g = fn(string $name, string $id, int $tier = 2) => ['kind' => 'fb_group', 'name' => $name, 'url' => "https://www.facebook.com/groups/$id", 'tier' => $tier];
+$p = fn(string $name, string $id, int $tier = 2) => ['kind' => 'fb_page', 'name' => $name, 'url' => "https://www.facebook.com/$id", 'tier' => $tier];
+
+return [
+    // Vente immobilière
+    $g('MAISON et TERRAIN à Vendre Maurice', 'MAISON.et.TERRAIN.Maurice', 1),
+    $g('Maison / Terrain à vendre à petit prix', '901873673838148', 1),
+    $g('Terrain et Maison à Vendre et Acheter à Maurice', '391247267726566', 1),
+    $g('TERRAIN ET MAISONS À VENDRE ÎLE MAURICE', '1318352385465574', 1),
+    $g('Terrain à vendre / Maison à vendre / Maison à louer', '1285955308794864'),
+    $g('Location & Vente île Maurice', '870818256713938'),
+    $g('Land For Sale In Mauritius', '338887824429896', 1),
+    $g('Immobilier Île Maurice / Real Estate in Mauritius', 'immobilierilemaurice', 1),
+    $g('Real Estate Mauritius', '1419944648264385'),
+    $g('Immobilier Île Maurice', '933167693532492'),
+    $g('TERRAIN - MAISONS À VENDRE À LOUER', '855458172118250'),
+    $g('Villa Île Maurice Nord Grand Baie', '1049485955875054', 1),
+    $g('Land for sale in Mauritius (2)', '859288066179528'),
+    $g('Terrain à vendre Île Maurice / Land for sale Mauritius', '3386401871416033'),
+    // Expatriés
+    $g('Expats and Locals in Mauritius', '203678987123750'),
+    $g('Île Maurice Expat & Local Mauritius', '590833608467024'),
+    $g('Expats nord île Maurice', '352322073708130', 1),
+    $g("S'expatrier à l'île Maurice", '1581054465692140'),
+    $g('Français, belges et suisses s\'expatrient à Maurice', '395567038335541'),
+    $g('Français à l\'île Maurice', '1205979650674996'),
+    $g('Expats Francophones île Maurice', '546483022707608'),
+    // Villages du Nord
+    $g('Grand Baie', '640941270165037', 1),
+    $g('Grand Baie : Nu village nu fierté', '983199348845220'),
+    $g('Trou aux Biches - Village de la Positivité', 'trouauxbiches', 1),
+    $g('Pointe aux Canonniers / Grand Baie / Trou aux Biches / Pereybère', '592596364674614', 1),
+    $g('Village de Grand Baie : Groupe P.I.M.A', '656155535097208', 1),
+    $g('Cap Malheureux / St François Village', '1910548832447509', 1),
+    $g('Nu village Trou aux Biches nu Paradis', '392348644197934'),
+    $g('Goodlands Petit Raffray Vale Fond du Sac Cottage Cap Malheureux Grand Baie', '149172770400307', 1),
+    $g('Goodlands - Roche Terre - Grand Gaube', '779622849255550'),
+    // Annonces généralistes
+    $g('Acheter Vendre ou Échanger / Buy and Sell in Mauritius', 'wanabuy'),
+    $g('MAURITIUS SELLING EVERYTHING at SMALL PRICE', '3943436932404568'),
+    $g('Les Petites Annonces de l\'île Maurice', 'lespetitesannoncesdemaurice'),
+    $g('Aster vander buy and sell in Mauritius', '507580069383618'),
+    $g('Marketplace Mauritius', '389316425309477'),
+    $g('Petites Annonces 100% Gratuites à l\'île Maurice', '115718481771743'),
+
+    // Pages d'agents, petits et grands
+    $p('OFIM immobilier Grand Baie', 'ofim.immobilier.grand.baie.maurice', 1),
+    $p('Nestenn Immobilier Grand Baie', 'nestennimmobiliergrandbaie', 1),
+    $p('MY IMMO Mauritius', 'patrickmyimmo', 1),
+    $p('Claudia Morris Real Estate', 'profile.php?id=100064974132329', 1),
+    $p('Real Estate Agency (Pereybère)', 'p/Real-Estate-Agency-61555894556164/', 1),
+    $p('Park Lane Properties', 'ParkLanePropertiesMauritius'),
+    $p('Agence immobilière OFIM Île Maurice', 'ofim.ile.maurice.agence.immobiliere'),
+    $p('AYO immobilier', 'AYOimmobilier'),
+    $p('Immobiliers.mu', 'immobiliers.mu'),
+    $p('Immo 23', 'immo23'),
+    $p('Square Meters Ltd', 'squaremeters.mu'),
+    $p('Sumad Immobilier', 'profile.php?id=100067314866630'),
+    $p('Ajr Agence Immobilière', 'profile.php?id=100067166710622'),
+    $p('Actimmo Immobilier', 'profile.php?id=100054664470005'),
+    $p('Agence immobilière Maurice Garcin', 'profile.php?id=100069642319558'),
+    $p('Angélique Grandjean - promptimmo', 'profile.php?id=100093126997007'),
+    $p('Innovate Real Estate Mauritius', 'innovaterem'),
+    $p('Real Estate Mauritius (page)', 'realestatemaurice'),
+    $p('Mauritius Property & Real Estate', 'mauritiuspropertyrealestate'),
+    $p('Terrain à vendre île Maurice (page)', 'profile.php?id=61579507094331', 1),
+    $p('Terrains à Vendre à Île Maurice (page)', 'profile.php?id=61581857191217', 1),
+];
