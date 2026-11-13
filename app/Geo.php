@@ -69,6 +69,8 @@ final class Geo
         'Bois Pignolet' => ['nord', ['bois pignolet']],
         'Crève Cœur' => ['nord', ['creve coeur', 'creve-coeur']],
         'Ville Bague' => ['nord', ['ville bague']],
+        'Haute Rive' => ['nord', ['haute rive', 'haute-rive']],
+        'Coriolis' => ['nord', ['coriolis', 'coriolise']],
         'Grand Baie La Croisette' => ['cote', ['la croisette']],
     ];
 
@@ -83,7 +85,7 @@ final class Geo
         'belle mare', 'trou d\'eau douce', 'flacq', 'poste de flacq', 'poste lafayette', 'bel ombre', 'souillac',
         'rose belle', 'plaine magnien', 'grand bois', 'chemin grenier', 'surinam', 'riviere des anguilles',
         'bambous', 'cascavelle', 'pailles', 'montagne longue', 'long mountain', 'quartier militaire', 'bel air',
-        'grande riviere', 'pointe aux sables', 'la preneuse', 'chamarel', 'rodrigues', 'highlands', 'reduit',
+        'grande riviere', 'pointe aux sables', 'pointe aux sable', 'la preneuse', 'chamarel', 'rodrigues', 'highlands', 'reduit',
         'palma', 'sodnac', 'trianon', 'wolmar', 'tamarina', 'petite riviere', 'gros cailloux', 'la tour koenig',
         'coromandel', 'roche bois', 'sainte croix', 'vallee des pretres', 'lallmatie', 'bon accueil', 'brisee verdiere',
         'centre de flacq', 'palmar', 'grand river south east', 'grse', 'beau champ', 'bois cheri', 'nouvelle france',
