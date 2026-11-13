@@ -138,6 +138,10 @@ switch ($cmd) {
         echo "http -> {$r['code']} vers {$r['url']}\n";
         break;
 
+    case 'reclassify':
+        echo Pipeline::reclassifyAll() . " annonces reclassées\n";
+        break;
+
     case 'rescore':
         echo Pipeline::rescoreAll() . " annonces recalculées\n";
         break;

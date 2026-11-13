@@ -76,5 +76,17 @@ eq('sans zone -> check', $v['bucket'], 'check');
 $v = $mk('Villa Pereybère Rs 10,900,000');
 eq('maison un peu au-dessus', [$v['bucket'], str_contains(implode(' ', $v['flags']), 'au-dessus')], ['deal', true]);
 
+// Corrections après le premier passage réel
+eq('location dans le titre', Classify::excluded('Duplex for rent at Trou aux Biches', 'Buy and sell real estate, apartments for sale'), 'location');
+eq('location dans l adresse', Classify::excluded('Grand Baie Maison 7 pièces 240 m²', 'Vente achat', 'https://x.mu/fr/location/ref-1/grand-baie'), 'location');
+eq('vente gardée (titre)', Classify::excluded('Villa for sale at Pereybere', 'rent'), null);
+eq('lieu inconnu dans le titre', Geo::detect('Residential land for Sale at Riviere des Anguilles X', 'near Pointe aux Canonniers', 'Residential land for Sale at Riviere des Anguilles X')['group'], 'hors');
+$g = Geo::detect('Residential land for sale at Mon Desert', 'Similar: Villa Pointe aux Canonniers', 'Residential land for sale at Mon Desert');
+eq('lieu inconnu -> pas de zone devinée', [$g['zone'], $g['group']], ['Mon Desert', null]);
+eq('crève coeur connu', Geo::detect('Residential land for Sale at Creve Coeur')['group'], 'nord');
+eq('titre sans lieu -> texte', Geo::detect('Villa à vendre', 'Belle villa à Pereybère')['zone'], 'Pereybère');
+eq('vendeur : propriétaire étranger', Classify::seller('Accessible aux acquéreurs étrangers, devenez propriétaire', 'site', null), 'agence');
+eq('vendeur : par le propriétaire', Classify::seller('Vendu par le propriétaire, sans agence', 'site', null), 'particulier');
+
 echo $fail ? "\n$fail échec(s)\n" : "Tous les tests passent.\n";
 exit($fail ? 1 : 0);

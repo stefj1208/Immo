@@ -64,6 +64,12 @@ final class Geo
         'Belmont' => ['nord', ['belmont']],
         'Mare Sèche' => ['nord', ['mare seche']],
         'Petite Julie' => ['nord', ['petite julie']],
+        'Pointe aux Biches' => ['nord', ['pointe aux biches', 'pointe-aux-biches']],
+        'Mont Mascal' => ['nord', ['mont mascal', 'mont-mascal']],
+        'Bois Pignolet' => ['nord', ['bois pignolet']],
+        'Crève Cœur' => ['nord', ['creve coeur', 'creve-coeur']],
+        'Ville Bague' => ['nord', ['ville bague']],
+        'Grand Baie La Croisette' => ['cote', ['la croisette']],
     ];
 
     /** Noms de lieux qui sont aussi des mots courants : valables seulement dans un titre, et en dernier recours. */
@@ -82,16 +88,51 @@ final class Geo
         'coromandel', 'roche bois', 'sainte croix', 'vallee des pretres', 'lallmatie', 'bon accueil', 'brisee verdiere',
         'centre de flacq', 'palmar', 'grand river south east', 'grse', 'beau champ', 'bois cheri', 'nouvelle france',
         'midlands', 'la laura', 'verdun', 'cote d\'or', 'helvetia', 'telfair',
+        'belvedere', 'camp des masques', 'camp de masque', 'riviere des creoles', 'chebel', 'eau coulee', 'wooton',
+        'plaine verte', 'cite la cure', 'saint julien', 'quatre soeurs', 'vieux grand port', 'old grand port', 'deux freres',
+        'bel etang', 'camp ithier', 'olivia', 'ripailles', 'mesnil', 'castel', 'candos', 'beau climat',
+        'pointe aux feuilles', 'anse jonchee', 'ferney', 'beau vallon', 'mare d\'albert', 'riviere du poste', 'plaine champagne',
+        'camp diable', 'saint aubin', 'la flora', 'tyack', 'baie du cap', 'riambel', 'pointe aux roches', 'gris gris',
+        'trou aux cerfs', 'forest side', 'glen park', 'mont roches', 'stanley', 'cassis', 'vallee pitot', 'plaine lauzun',
+        'la marie', 'la caverne', 'henrietta', 'bonne terre', 'camp fouquereaux', 'pierrefonds', 'gros billot', 'la ferme',
+        'clemencia', 'ecroignard', 'laventure', 'bramsthan', 'lallmatie', 'montagne blanche', 'medine',
+        'magenta', 'case noyale', 'petite case noyale', 'le bouchon', 'bois des amourettes', 'grand sable', 'quatre cocos',
+        'palmyre', 'saint martin', 'ebene city', 'cote d or', 'les guibies', 'beau plan',
     ];
+
+    /** Mots qui suivent souvent « à » ou « at » dans un titre sans être des lieux. */
+    private const NOT_PLACES = ['maurice', 'mauritius', 'ile', 'l\'ile', 'island', 'vendre', 'sale', 'rent', 'louer', 'the', 'un', 'une', 'prix',
+        'rs', 'nord', 'north', 'beach', 'plage', 'gated', 'morcellement', 'residence', 'domaine', 'quartier', 'proximite', 'deux', 'quelques',
+        'pied', 'pieds', 'saisir', 'vendre', 'partir', 'only', 'just', 'walking', 'minutes', 'min', 'from', 'rs.', 'mur', 'eur', 'usd', 'proche'];
+
+    /**
+     * Lieu nommé dans un titre (« … at Creve Coeur », « … à Bel Air ») même s'il n'est pas dans nos listes.
+     */
+    public static function placeInTitle(string $title): ?string
+    {
+        if (!preg_match_all("~(?:^|\\s)(?:at|à|a|in|au|aux|near|secteur|r[ée]gion|village)\\s+((?:[A-ZÀ-Ý][\\w'’-]+)(?:\\s+(?:[A-ZÀ-Ý][\\w'’-]+|de|des|du|la|le|aux|au|d'))*)~u", $title, $mm, PREG_SET_ORDER)) return null;
+        foreach ($mm as $m) {
+            $place = trim($m[1], " -'’");
+            $first = Text::fold(explode(' ', $place)[0]);
+            if (in_array($first, self::NOT_PLACES, true) || mb_strlen($place) < 3) continue;
+            return $place;
+        }
+        return null;
+    }
 
     /**
      * Cherche la localité : d'abord dans le titre et l'adresse, puis dans le texte.
      * Retourne ['zone' => nom|null, 'group' => 'cote'|'nord'|'nord?'|'hors'|null].
      */
-    public static function detect(string $primary, string $secondary = ''): array
+    public static function detect(string $primary, string $secondary = '', string $title = ''): array
     {
         foreach ([$primary, $secondary] as $i => $hay) {
             if ($hay === '') continue;
+            // Le titre nomme un lieu que nous ne connaissons pas : on ne va pas chercher dans le reste de la page,
+            // qui contient souvent les noms d'autres annonces.
+            if ($i === 1 && $title !== '' && ($place = self::placeInTitle($title))) {
+                return ['zone' => $place, 'group' => null, 'unknown' => true];
+            }
             $t = ' ' . preg_replace('/[^a-z0-9\']+/', ' ', Text::fold($hay)) . ' ';
             $best = null;      // [nom, groupe, position] pour les noms sans ambiguïté
             $weak = null;      // idem pour les noms qui sont aussi des mots courants

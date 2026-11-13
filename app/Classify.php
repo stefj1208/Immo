@@ -8,8 +8,8 @@ declare(strict_types=1);
 final class Classify
 {
     public const DEFAULT_PROFILES = [
-        'appart' => ['label' => 'Appartement', 'kinds' => ['appartement'], 'group' => 'cote', 'max' => 6000000, 'min' => 700000],
-        'maison' => ['label' => 'Maison', 'kinds' => ['maison'], 'group' => 'cote', 'max' => 10000000, 'min' => 900000],
+        'appart' => ['label' => 'Appartement', 'kinds' => ['appartement'], 'group' => 'cote', 'max' => 6000000, 'min' => 1500000],
+        'maison' => ['label' => 'Maison', 'kinds' => ['maison'], 'group' => 'cote', 'max' => 10000000, 'min' => 3000000],
         'terrain_res' => ['label' => 'Terrain résidentiel', 'kinds' => ['terrain_res', 'terrain'], 'group' => 'cote', 'max' => 3000000, 'min' => 150000],
         'terrain_agri' => ['label' => 'Terrain agricole', 'kinds' => ['terrain_agri', 'terrain'], 'group' => 'nord', 'max' => 2500000, 'min' => 100000],
     ];
@@ -74,11 +74,18 @@ final class Classify
     }
 
     /** Motif d'exclusion (location, recherche d'un acheteur…) ou null. */
-    public static function excluded(string $title, string $text): ?string
+    public static function excluded(string $title, string $text, string $url = ''): ?string
     {
+        $rxSale = '~\b(a vendre|for sale|en vente|vente\b|vends?\b|vendre|on sale|selling|to sell|sale\b|pou vande|a vend)~';
+        $rxRent = '~\b(a louer|for rent|to let|to rent|en location|location\b|loyer|long[ -]term rental|short[ -]term|holiday rental|per month|par mois|/ ?mois|pou louer|rental|rent\b|bail commercial)~';
+        // Le titre et l'adresse de la page tranchent d'abord : les menus des sites mentionnent souvent « vente ».
+        $tt = Text::fold($title);
+        if (preg_match($rxRent, $tt) && !preg_match($rxSale, $tt)) return 'location';
+        $path = Text::fold(str_replace(['-', '_', '/'], ' ', (string)parse_url($url, PHP_URL_PATH)));
+        if (preg_match('~\b(location|for rent|a louer|to let|rentals?|louer)\b~', $path) && !preg_match($rxSale, $tt . ' ' . $path)) return 'location';
         $head = Text::fold($title . ' ' . mb_substr($text, 0, 350));
-        $sale = (bool)preg_match('~\b(a vendre|for sale|en vente|vente\b|vends?\b|vendre|on sale|selling|to sell|sale\b|pou vande|a vend)~', $head);
-        $rent = (bool)preg_match('~\b(a louer|for rent|to let|to rent|en location|location (longue|courte|saisonniere|meublee|vacances|annuelle|mensuelle)|loyer|long[ -]term rental|short[ -]term|holiday rental|per month|par mois|/ ?mois|pou louer|rental|rent\b|bail commercial)~', $head);
+        $sale = (bool)preg_match($rxSale, $head);
+        $rent = (bool)preg_match($rxRent, $head);
         if ($rent && !$sale) return 'location';
         $start = mb_substr($head, 0, 160);
         if (preg_match('~(^|[.!\n] ?)(bonjour[ ,!]*|bonsoir[ ,!]*|hello[ ,!]*|hi[ ,!]*|urgent[ ,!:]*)?(je |nous |on |mo pe |mo |client |famille |couple )?(suis a la |sommes a la )?(re)?cherch(e|ons|ent|er)?\b~', $start)
@@ -120,7 +127,7 @@ final class Classify
     public static function seller(string $text, string $sourceKind, ?string $hint = null): string
     {
         $t = Text::fold(mb_substr($text, 0, 1800));
-        if (preg_match('~proprietaire|by owner|direct owner|owner direct|sans agence|sans intermediaire|no agents?\b|agents? s\'abstenir|agences? s\'abstenir|de particulier|particulier a particulier|pas d\'agence|je vends|je vend\b|vends (ma|mon)|selling my|my (house|land|apartment|villa|plot)|mo pe vande|direct proprio~', $t)) {
+        if (preg_match('~(vend(s|u|ue)? )?(par|du|de) (le |son )?proprietaire\b|proprietaire vend|direct(ement)? (du |de |aupres du )?proprietaire|by owner|direct owner|owner direct|sans agence|sans intermediaire|no agents?\b|agents? s\'abstenir|agences? s\'abstenir|de particulier|particulier a particulier|pas d\'agence|je vends|je vend\b|vends (ma|mon)|selling my|my (house|land|apartment|villa|plot)|mo pe vande|direct proprio~', $t)) {
             return 'particulier';
         }
         if ($hint) return $hint;
@@ -172,7 +179,7 @@ final class Classify
         $out['beach'] = $beachLabel;
         $out['seller'] = self::seller($full, $l['source_kind'] ?? 'site', $l['seller_hint'] ?? null);
 
-        if ($ex = self::excluded($l['title'], $l['text'])) {
+        if ($ex = self::excluded($l['title'], $l['text'], (string)($l['url'] ?? ''))) {
             $out['flags'] = ["écartée : $ex"];
             $out['reasons'] = [];
             return $out;
@@ -234,7 +241,8 @@ final class Classify
 
         if ($kind === 'terrain') $flags[] = 'nature du terrain à vérifier (résidentiel ou agricole)';
 
-        if ($group === null) { $check = true; $flags[] = 'localité non précisée'; }
+        if ($group === null && !empty($l['zone'])) { $check = true; $flags[] = 'lieu « ' . $l['zone'] . ' » à situer : hors de tes secteurs ?'; }
+        elseif ($group === null) { $check = true; $flags[] = 'localité non précisée'; }
         elseif ($group === 'nord?') { $check = true; $flags[] = 'dans le Nord, localité à préciser'; }
 
         if ($price === null) {
@@ -258,7 +266,9 @@ final class Classify
             $mk = self::market()[$kind . '|' . $group] ?? null;
             if ($base >= 15 && $mk) {
                 $delta = ($price / $base) / $mk['median'] - 1;
-                if ($delta <= -0.12) {
+                if ($delta <= -0.55) {
+                    $flags[] = 'prix au m² très inférieur aux comparables : vérifier la surface';
+                } elseif ($delta <= -0.12) {
                     $score += (int)round(min(20, abs($delta) * 45));
                     $reasons[] = round(abs($delta) * 100) . ' % moins cher au m² que les biens comparables';
                 } elseif ($delta >= 0.25) {
@@ -279,7 +289,8 @@ final class Classify
         if ($out['seller'] === 'particulier') { $score += 7; $reasons[] = 'vente par le propriétaire'; }
 
         $t = Text::fold($full);
-        if (preg_match('~urgent|vente rapide|quick sale|a saisir|prix (negociable|a debattre|casse|sacrifie)|negotiable|negociable|must sell|depart|leaving|bon prix|bonne affaire|opportunite|below market|en dessous du (prix|marche)|prix reduit|price reduced|baisse de prix|reduced~', $t, $m)) {
+        $headT = Text::fold($l['title'] . ' ' . mb_substr((string)$l['text'], 0, 600));
+        if (preg_match('~urgent|vente rapide|quick sale|a saisir|prix (a debattre|casse|sacrifie)|(?<!non )(?<!not )(negociable|negotiable)|must sell|cause (de )?depart|due to (departure|relocation)|leaving (the country|mauritius)|below market|en dessous du (prix|marche)|prix reduit|price reduced|baisse de prix~', $headT)) {
             $score += 6;
             $reasons[] = 'vendeur pressé ou prix négociable';
         }
@@ -293,7 +304,7 @@ final class Classify
         }
         if (preg_match('~\bbail\b|leasehold|lease ?hold|terrain a bail|state land|pas geometriques|campement site~', $t)) { $score -= 10; $flags[] = 'terrain à bail, pas en pleine propriété'; }
         if (preg_match('~indivision|heritiers?|succession|undivided|part indivise~', $t)) { $score -= 6; $flags[] = 'indivision ou succession'; }
-        if (preg_match('~sur plan|vefa|off[ -]plan|en construction|a construire|livraison (prevue|en|20)|under construction|projet (de|immobilier)~', $t)) { $score -= 8; $flags[] = 'sur plan ou en construction'; }
+        if (preg_match('~sur plan|vefa|off[ -]plan|en cours de construction|under construction|livraison (prevue|en 20|20\d\d)|delivery (in|expected) 20~', $t)) { $score -= 8; $flags[] = 'sur plan ou en construction'; }
         if (preg_match('~\b(pds|irs|res|r\.e\.s|smart city|g\+2)\b~', $t)) { $score -= 4; $flags[] = 'programme pour acheteurs étrangers (PDS / IRS / RES)'; }
         if ($kind === 'terrain_agri' && preg_match('~conversion|convertible|land conversion~', $t)) $reasons[] = 'conversion évoquée';
         if (str_starts_with($kind, 'terrain') && preg_match('~inondable|flood|marecage|wetland|zone humide~', $t)) { $score -= 8; $flags[] = 'zone humide ou inondable évoquée'; }

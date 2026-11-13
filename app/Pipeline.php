@@ -18,7 +18,7 @@ final class Pipeline
         $cfg = $source['cfg_arr'] ?? [];
 
         $kind = $raw['kind'] ?? Classify::kind($title, $text, $url);
-        $geo = Geo::detect($title . ' ' . ($raw['location'] ?? '') . ' ' . str_replace(['-', '_', '/'], ' ', (string)parse_url($url, PHP_URL_PATH)), mb_substr($text, 0, 1500));
+        $geo = Geo::detect($title . ' ' . ($raw['location'] ?? '') . ' ' . str_replace(['-', '_', '/'], ' ', (string)parse_url($url, PHP_URL_PATH)), mb_substr($text, 0, 1500), $title);
         if (!empty($raw['zone'])) {
             $g2 = Geo::detect((string)$raw['zone']);
             if ($g2['zone']) $geo = $g2;
@@ -137,6 +137,31 @@ final class Pipeline
         if (!empty($a['plage']) && is_string($a['plage']) && !preg_match('~^(non|aucun|inconnu|null|pas )~i', $a['plage'])) $x['ai_beach'] = $a['plage'];
         if (in_array($a['vendeur'] ?? null, ['particulier', 'agence'], true)) $x['seller_hint'] = $a['vendeur'];
         return $x;
+    }
+
+    /** Relit nature et localité depuis le texte enregistré, puis recalcule la note (après une amélioration des règles). */
+    public static function reclassifyAll(): int
+    {
+        $n = 0;
+        foreach (Db::all('SELECT * FROM listings') as $row) {
+            $title = (string)$row['title'];
+            $text = (string)$row['text'];
+            $url = (string)$row['url'];
+            $upd = [];
+            if (!$row['ai_done']) {
+                $upd['kind'] = Classify::kind($title, $text, $url);
+                $g = Geo::detect($title . ' ' . str_replace(['-', '_', '/'], ' ', (string)parse_url($url, PHP_URL_PATH)), mb_substr($text, 0, 1500), $title);
+                $upd['zone'] = $g['zone'];
+                $upd['zone_group'] = $g['group'];
+            }
+            if ($upd) {
+                Db::run('UPDATE listings SET ' . implode(', ', array_map(fn($c) => "$c = ?", array_keys($upd))) . ' WHERE id = ?', [...array_values($upd), $row['id']]);
+                $row = array_merge($row, $upd);
+            }
+            self::rescore($row);
+            $n++;
+        }
+        return $n;
     }
 
     public static function rescoreAll(): int
