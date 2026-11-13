@@ -15,9 +15,9 @@ return [
     ],
     [
         'name' => 'Aster Vender',
-        'lists' => ['https://www.astervender.mu/petites-annonces?sort=created_at', 'https://www.astervender.mu/Real-Estate'],
+        'lists' => ['https://www.astervender.mu/petites-annonces?sort=created_at'],
         'link' => 'astervender\.mu/Real-Estate/[^/?]+-\d+$',
-        'pages' => 3, 'page_param' => 'page', 'seller' => null,
+        'pages' => 6, 'page_param' => 'page', 'seller' => null,
     ],
     [
         'name' => 'Westimmo (real-estate-mauritius.mu)',
@@ -113,11 +113,6 @@ return [
         'name' => 'Immo.mu',
         'lists' => ['https://www.immo.mu/fr/catalog/north', 'https://www.immo.mu/fr/compilations/resale'],
         'link' => 'immo\.mu/fr/properties/[a-z0-9-]+$',
-    ],
-    [
-        'name' => 'Immobiliers.mu',
-        'lists' => ['https://www.immobiliers.mu/biens-a-vendre'],
-        'link' => 'immobiliers\.mu/(bien|biens|annonce|property)/[^/?]+$',
     ],
     [
         'name' => 'Decordier',

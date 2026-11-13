@@ -4,7 +4,7 @@ declare(strict_types=1);
 /** Un passage de collecte : sites, Facebook (via Apify), IA, notifications. */
 final class Collector
 {
-    private const MAX_DETAILS_PER_SOURCE = 45;
+    private const MAX_DETAILS_PER_SOURCE = 80;
 
     public static function tick(bool $force = false, int $budget = 240): array
     {
@@ -85,7 +85,14 @@ final class Collector
         $todo = [];
         foreach ($links as $l) {
             if (count($todo) >= self::MAX_DETAILS_PER_SOURCE) break;
-            if (!Db::val('SELECT 1 FROM seen_urls WHERE url = ?', [$l])) $todo[] = $l;
+            if (Db::val('SELECT 1 FROM seen_urls WHERE url = ?', [$l])) continue;
+            // L'adresse nomme une ville hors du Nord : inutile d'ouvrir la fiche.
+            if (Geo::detect(str_replace(['-', '_', '/', '.'], ' ', urldecode((string)parse_url($l, PHP_URL_PATH))))['group'] === 'hors') {
+                Db::run('INSERT OR REPLACE INTO seen_urls(url, source_id, seen_at, ok) VALUES(?,?,?,0)', [$l, $src['id'], now()]);
+                $res['skipped'] = ($res['skipped'] ?? 0) + 1;
+                continue;
+            }
+            $todo[] = $l;
         }
 
         foreach (array_chunk($todo, 4) as $chunk) {

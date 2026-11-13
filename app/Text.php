@@ -27,7 +27,7 @@ final class Text
 
     public static function clean(string $s): string
     {
-        $s = html_entity_decode($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $s = html_entity_decode(html_entity_decode($s, ENT_QUOTES | ENT_HTML5, 'UTF-8'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $s = str_replace(["\u{00A0}", "\u{202F}", "\r"], [' ', ' ', ''], $s);
         $s = (string)preg_replace('/[ \t]+/u', ' ', $s);
         $s = (string)preg_replace('/\n\s*\n\s*\n+/u', "\n\n", $s);

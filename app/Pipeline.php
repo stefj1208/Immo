@@ -32,6 +32,12 @@ final class Pipeline
         $phone = $raw['phone'] ?? Text::phone($title . "\n" . $text);
         $beds = $raw['beds'] ?? Text::beds($title . "\n" . mb_substr($text, 0, 1500));
 
+        // Titre générique du site (« Agence immobilière… ») : on en compose un qui dit quelque chose.
+        if (preg_match('~agence immobili|real estate agen|immobilier (a|à) l\'(i|î)le maurice|^(home|accueil)\b~iu', $title) && !preg_match('~vendre|sale|terrain|villa|maison|appart~iu', mb_substr($title, 0, 40))) {
+            $names = ['appartement' => 'Appartement', 'maison' => 'Maison', 'terrain' => 'Terrain', 'terrain_res' => 'Terrain résidentiel', 'terrain_agri' => 'Terrain agricole'];
+            $title = ($names[$kind] ?? 'Bien') . ' à vendre' . ($geo['zone'] ? ' à ' . $geo['zone'] : '');
+        }
+
         $l = [
             'source_id' => $source['id'] ?? null,
             'source_name' => $source['name'] ?? 'Ajout manuel',

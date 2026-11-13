@@ -11,6 +11,8 @@ final class Extract
     public static function links(string $html, string $base, string $regex, string $exclude = ''): array
     {
         $out = [];
+        // Certains sites déclarent une adresse de base différente de celle de la page.
+        if (preg_match('~<base\b[^>]*\bhref\s*=\s*(["\'])(.*?)\1~is', $html, $b) && ($nb = Http::absolute($b[2], $base))) $base = $nb;
         if (!preg_match_all('~<a\b[^>]*?\bhref\s*=\s*(["\'])(.*?)\1~is', $html, $m)) return $out;
         foreach ($m[2] as $href) {
             $abs = Http::absolute($href, $base);
@@ -182,7 +184,7 @@ final class Extract
 
         return [
             'url' => $url,
-            'title' => Text::cut($title, 200),
+            'title' => Text::cut(trim((string)strtok(trim($title), "\n")), 200),
             'location' => $location,
             'description' => $description,
             'text' => trim($description . "\n\n" . $body),
