@@ -14,6 +14,14 @@ final class Http
             'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language: fr-FR,fr;q=0.9,en;q=0.8',
             'Cache-Control: no-cache',
+            'Upgrade-Insecure-Requests: 1',
+            'Sec-Ch-Ua: "Chromium";v="130", "Google Chrome";v="130", "Not?A_Brand";v="99"',
+            'Sec-Ch-Ua-Mobile: ?0',
+            'Sec-Ch-Ua-Platform: "Windows"',
+            'Sec-Fetch-Dest: document',
+            'Sec-Fetch-Mode: navigate',
+            'Sec-Fetch-Site: none',
+            'Sec-Fetch-User: ?1',
         ], $opt['headers'] ?? []);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
@@ -26,6 +34,7 @@ final class Http
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_COOKIEFILE => '',
             CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_HTTP_VERSION => defined('CURL_HTTP_VERSION_2TLS') ? CURL_HTTP_VERSION_2TLS : CURL_HTTP_VERSION_NONE,
         ]);
         if (isset($opt['post'])) {
             curl_setopt($ch, CURLOPT_POST, true);
@@ -116,6 +125,7 @@ final class Http
     public static function tidy(string $url): string
     {
         $url = (string)preg_replace('~#.*$~', '', $url);
+        $url = (string)preg_replace('~(?<!:)/{2,}~', '/', $url);
         $url = (string)preg_replace('~([?&])(utm_[a-z]+|fbclid|gclid|ref|source|mibextid|rdid|share_url|__cft__\[\d\]|__tn__)=[^&]*~i', '$1', $url);
         $url = (string)preg_replace('~[?&]+$~', '', (string)preg_replace('~([?&])&+~', '$1', $url));
         return $url;

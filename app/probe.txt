@@ -1,42 +1,33 @@
 https://www.propertycloud.mu/houses-for-sale/north propertycloud\.mu/(fr/a-vendre|for-sale)/[a-z-]+-[a-z]+\d+$
-https://www.propertycloud.mu/agricultural-land-for-sale/north?page=2 propertycloud\.mu/(fr/a-vendre|for-sale)/[a-z-]+-[a-z]+\d+$
-https://www.propertycloud.mu/for-sale/agricultural-land-lndr319759
-https://www.lexpressproperty.com/fr/acheter-ile-maurice/tout/
-https://www.expat.com/fr/immobilier/afrique/ile-maurice/44-terrains-a-vendre/ expat\.com/fr/immobilier/afrique/ile-maurice/4[234]-[a-z-]+/\d+-[^/]+\.html$
-https://www.expat.com/fr/immobilier/afrique/ile-maurice/44-terrains-a-vendre/798959-a-vendre-portion-de-terrain-pres-de-la-mer-poudre-dor-hamlet.html
-https://real-estate-mauritius.mu/en/buy/ real-estate-mauritius\.mu/en/buy/[^/]+-\d+/?$
+https://www.lexpressproperty.com/
 https://www.propertymap.mu/fr
-https://www.fmimmobilier.com/fr/nord/biens-en-vente.html
-https://www.primmo.mu/achat/maison-a-vendre-ile-maurice
-https://www.proimmobilier-mauritius.com/
-https://myimmomauritius.com/
-https://www.villa-vie.com/
-https://www.astervender.mu/petites-annonces
-https://mu.green-acres.com/maison-a-vendre
-https://www.pamgolding.mu/fr/terrains-a-vendre-ile-maurice.html
-https://parklane.mu/
-https://www.decordier-immobilier.mu/fr/
-https://ile-maurice.nestenn.com/
-https://engelvoelkers.com/mu/fr
-https://www.jlsk-group.com/
-https://www.mauritiusproperty.org/
-https://www.immobiliers.mu/
-https://www.squaremeters.mu/
-https://www.lacase.mu/
-https://www.mega.mu/
-https://www.seeff.mu/
-https://www.remax.mu/
-https://www.century21.mu/
-https://www.ofim.mu/
-https://www.horizon.mu/
-https://www.barnes-mauritius.com/
-https://www.mubazar.com/
-https://www.locanto.mu/
-https://www.petitesannonces.mu/
-https://www.ledefimedia.info/
-https://www.immo.mu/
-https://www.realty.mu/
-https://www.property.mu/
-https://www.landmauritius.com/
-https://www.adsafrica.mu/
-https://www.clicanoo.mu/
+https://www.expat.com/fr/immobilier/afrique/ile-maurice/terrains-a-vendre.html expat\.com/fr/immobilier/afrique/ile-maurice/4[234]-[a-z-]+/\d+-[^/]+\.html$
+https://www.expat.com/fr/immobilier/afrique/ile-maurice/a-vendre.html?page=2 expat\.com/fr/immobilier/afrique/ile-maurice/4[234]-[a-z-]+/\d+-[^/]+\.html$
+https://www.expat.com/fr/immobilier/afrique/ile-maurice/maisons-a-vendre.html expat\.com/fr/immobilier/afrique/ile-maurice/4[234]-[a-z-]+/\d+-[^/]+\.html$
+https://www.astervender.mu/Real-Estate astervender\.mu/Real-Estate/[^/?]+-\d+$
+https://www.astervender.mu/petites-annonces?sort=created_at&page=2 astervender\.mu/Real-Estate/[^/?]+-\d+$
+https://real-estate-mauritius.mu/en/buy-property-mauritius/land-for-sale/ real-estate-mauritius\.mu/en/buy/[^/]+-\d+/?$
+https://www.pamgolding.mu/index.php?action=list&ctypmandatmeta=v&clangue=fr&cregionmeta=nord pamgolding\.mu/fr/annonces-immobilieres/offre/[^/]+/bien/\d+/
+https://www.pamgolding.mu/index.php?action=list&seolink=0&ctypmandatmeta=v&ctypmeta=terr&clangue=fr&cregionmeta=nord pamgolding\.mu/fr/annonces-immobilieres/offre/[^/]+/bien/\d+/
+https://parklane.mu/en/buy.html parklane\.mu/en/realestate-adverts/offer/[^/]+/property/\d+/
+https://parklane.mu/index.php?action=list&ctypmandatmeta=v&cregionmeta=nord&clangue=en&search_currency=MUR&cdevise=MUR parklane\.mu/en/realestate-adverts/offer/[^/]+/property/\d+/
+https://www.fmimmobilier.com/index.php?action=list&cregionmeta=nord&ctypmandatmeta=v&page=2 fmimmobilier\.com/fr/annonces-immobilieres/offre/[^/]+/bien/\d+/
+https://www.primmo.mu/achat/terrain-a-vendre-ile-maurice primmo\.mu/achat/[^/]+/item/\d+-[^/?]+$
+https://myimmomauritius.com/proprietes/ myimmomauritius\.com/proprietes/myi\d+/?$
+https://www.villa-vie.com/achat-vente-immobilier-ile-maurice-pour-mauriciens/terrains/ villa-vie\.com/achat-vente-immobilier-ile-maurice-pour-mauriciens/[^/]+/[^/]+/?$
+https://ile-maurice.nestenn.com/vente/terrain/30501-grand-baie ile-maurice\.nestenn\.com/[a-z0-9-]+-ref-\d+$
+https://ile-maurice.nestenn.com/acheter ile-maurice\.nestenn\.com/[a-z0-9-]+-ref-\d+$
+https://www.ofim.mu/liste-vente.html ofim\.mu/\d+/[^/]+\.html$
+https://www.seeff.mu/property/?property_status=sale seeff\.mu/property/[a-z0-9-]+/?$
+https://www.century21.mu/results/residential/for-sale/ century21\.mu/results/residential/for-sale/[^?]+/\d+/?$
+https://www.immo.mu/fr/catalog/north immo\.mu/fr/properties/[a-z0-9-]+$
+https://www.immobiliers.mu/biens-a-vendre immobiliers\.mu/(bien|biens|annonce|property)/[^/?]+$
+https://www.decordier-immobilier.mu/fr/achat/&new_research=1 decordier-immobilier\.mu/fr/[^?&]*\d{3,}
+https://www.expat.com/fr/immobilier/afrique/ile-maurice/44-terrains-a-vendre/798959-a-vendre-portion-de-terrain-pres-de-la-mer-poudre-dor-hamlet.html try
+https://www.astervender.mu/Real-Estate/Residential-land-for-sale-at-Pamplemouss-Land-59746 try
+https://www.pamgolding.mu/fr/annonces-immobilieres/offre/petit-raffray/bien/132873/petit-raffray-terrain-a-vendre-pam-golding-mauritius.html try
+https://www.primmo.mu/achat/maison-a-vendre-ile-maurice/item/3963-pereybere try
+https://myimmomauritius.com/proprietes/myi303137/ try
+https://real-estate-mauritius.mu/en/buy/3-bedroom-ground-floor-apartment-for-sale-in-pereybere-mauritius-86801719/ try
+https://www.fmimmobilier.com/fr/annonces-immobilieres/offre/ville/bien/116886/av-fm225-a-vendre-villa-sur-mer-situ-eacutee-agrave-pointe-aux-canonniers.html try
+https://www.immo.mu/fr/properties/mont-choisy-gorgeous-apartment-3-br try

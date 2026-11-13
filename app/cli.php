@@ -55,7 +55,15 @@ switch ($cmd) {
         foreach ($lines as $l) { [$u, $r] = array_pad(preg_split('/\s+/', $l, 2), 2, null); $urls[] = $u; $rx[$u] = $r; }
         foreach (Http::many($urls, 6, ['timeout' => 20]) as $u => $r) {
             echo "\n== $u -> HTTP {$r['code']} {$r['error']} (" . strlen($r['body']) . " o)\n";
-            if ($r['code'] !== 200 || $r['body'] === '') continue;
+            if ($r['code'] !== 200 || $r['body'] === '') { echo '  ' . Text::cut(trim(preg_replace('/\s+/', ' ', strip_tags($r['body']))), 160) . "\n"; continue; }
+            if (($rx[$u] ?? '') === 'try') {
+                $raw = Extract::fromHtml($r['body'], $u);
+                $k = Classify::kind($raw['title'], $raw['text'], $u);
+                $g = Geo::detect($raw['title'] . ' ' . $raw['location'] . ' ' . str_replace(['-', '/'], ' ', (string)parse_url($u, PHP_URL_PATH)), mb_substr($raw['text'], 0, 1500));
+                $ar = Text::areas($raw['title'] . "\n" . mb_substr($raw['text'], 0, 2500), $k);
+                echo "  titre: {$raw['title']}\n  nature: $k · zone: " . json_encode($g, JSON_UNESCAPED_UNICODE) . ' · prix: ' . json_encode($raw['price']) . ' · surfaces: ' . json_encode($ar) . " · ch: {$raw['beds']} · tel: {$raw['phone']} · photos: " . count($raw['photos']) . "\n  texte: " . Text::cut(preg_replace('/\s+/', ' ', $raw['text']), 260) . "\n";
+                continue;
+            }
             $p = Extract::probe($r['body'], $u);
             echo 'titre « ' . Text::cut($p['title'], 70) . ' » · liens ' . $p['links_total'] . ' · JSON-LD ' . json_encode($p['jsonld_types']) . "\n";
             echo implode("\n", array_slice($p['shapes'], 0, 7)) . "\n";
