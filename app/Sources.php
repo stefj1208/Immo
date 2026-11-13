@@ -23,6 +23,15 @@ final class Sources
             $cfg = ['lists' => $s['lists'], 'link' => $s['link'], 'exclude' => $s['exclude'] ?? '', 'seller' => $s['seller'] ?? null, 'pages' => $s['pages'] ?? 1, 'page_param' => $s['page_param'] ?? null];
             $n += self::upsert('site', $s['name'], $s['lists'][0], $cfg, $s['every'] ?? 60, $s['enabled'] ?? 1, true);
         }
+        // Sites retirés ou désactivés dans la liste de départ (ceux que tu as ajoutés toi-même ne bougent pas).
+        $names = array_column(self::sites(), 'name');
+        foreach (Db::all("SELECT id, name FROM sources WHERE kind = 'site'") as $row) {
+            if (setting('src_lock_' . $row['id']) === '1') continue;
+            if (!in_array($row['name'], $names, true)) Db::run('DELETE FROM sources WHERE id = ?', [$row['id']]);
+        }
+        foreach (self::sites() as $s) {
+            if (($s['enabled'] ?? 1) === 0) Db::run("UPDATE sources SET enabled = 0 WHERE kind = 'site' AND name = ? AND last_ok_at IS NULL", [$s['name']]);
+        }
         foreach (self::facebook() as $f) {
             $n += self::upsert($f['kind'], $f['name'], $f['url'], ['tier' => $f['tier'] ?? 2], 480, 1, false);
         }
