@@ -34,7 +34,7 @@ final class Collector
                 $summary['check'] += $r['check'];
             }
             if (microtime(true) - $start < $budget) {
-                $summary['facebook'] = Apify::tick($force);
+                $summary['facebook'] = Apify::tick(false);   // Facebook suit son propre horaire : le bouton Collecte ne le relance pas
                 $summary['new'] += $summary['facebook']['new'] ?? 0;
                 $summary['deals'] += $summary['facebook']['deals'] ?? 0;
             }

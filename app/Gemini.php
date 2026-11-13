@@ -20,6 +20,7 @@ final class Gemini
         $key = (string)setting('gemini_key', '');
         if ($key === '') return null;
         $models = array_values(array_unique(array_filter(array_merge([setting('gemini_model')], self::FALLBACK_MODELS))));
+        $last = null;
         foreach ($models as $model) {
             $r = Http::json("https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent", [
                 'headers' => ['x-goog-api-key: ' . $key],
@@ -31,7 +32,10 @@ final class Gemini
             ]);
             if ($r['code'] === 404 || ($r['code'] === 400 && str_contains($r['body'], 'not found'))) continue; // modèle retiré : on essaie le suivant
             if ($r['code'] !== 200) {
-                set_setting('gemini_error', 'HTTP ' . $r['code'] . ' ' . Text::cut((string)($r['data']['error']['message'] ?? $r['error'] ?? ''), 160) . ' (' . date('d/m H:i') . ')');
+                $last = 'HTTP ' . $r['code'] . ' ' . Text::cut((string)($r['data']['error']['message'] ?? $r['error'] ?? ''), 160) . ' (' . date('d/m H:i') . ')';
+                // Modèle saturé ou quota épuisé : chaque modèle a son propre quota gratuit, on essaie le suivant.
+                if (in_array($r['code'], [429, 500, 503, 0], true)) continue;
+                set_setting('gemini_error', $last);
                 return null;
             }
             if (setting('gemini_model') !== $model) set_setting('gemini_model', $model);
@@ -42,7 +46,7 @@ final class Gemini
             $d = json_decode($txt, true);
             return is_array($d) ? $d : null;
         }
-        set_setting('gemini_error', 'aucun modèle disponible avec cette clé');
+        set_setting('gemini_error', $last ? 'tous les modèles sont saturés pour l\'instant, nouvel essai au prochain passage. Dernière erreur : ' . $last : 'aucun modèle disponible avec cette clé');
         return null;
     }
 

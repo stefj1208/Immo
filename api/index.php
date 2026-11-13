@@ -277,6 +277,12 @@ switch ($a) {
         out(['runs' => $runs, 'broken' => Db::all("SELECT name, last_error FROM sources WHERE enabled = 1 AND kind = 'site' AND fail_streak >= 3")]);
     }
 
+    case 'fb_run': {
+        $r = Apify::runNow();
+        if (isset($r['error'])) fail($r['error'], 409);
+        out(['ok' => true, 'started' => $r['started']]);
+    }
+
     case 'run': {
         set_setting('run_now', '1');
         out(['ok' => true]);

@@ -106,7 +106,18 @@ final class Apify
      * Le budget restant du mois est réparti sur les jours restants ; 70 % pour la recherche du matin.
      * Un lancement trop petit pour être utile est sauté : son budget reste disponible les jours suivants.
      */
-    private static function startDue(bool $force): array
+    /** Lancement à la demande depuis l'application : une recherche, dans la limite du budget du jour. */
+    public static function runNow(): array
+    {
+        if (!self::ready()) return ['error' => 'Colle d\'abord ton jeton Apify.'];
+        if (Db::val("SELECT COUNT(*) FROM apify_runs WHERE status IN ('READY', 'RUNNING')") > 0) return ['error' => 'Une lecture Facebook est déjà en cours. Les résultats arrivent dans quelques minutes.'];
+        set_setting('apify_error', null);
+        $started = self::startDue(true, 0);
+        $err = setting('apify_error');
+        return $err ? ['error' => $err] : ['started' => $started];
+    }
+
+    private static function startDue(bool $force, ?int $forceSlot = null): array
     {
         $hours = array_map('intval', explode(',', (string)setting('fb_hours', '8,19')));
         sort($hours);
@@ -114,7 +125,7 @@ final class Apify
         $slot = null;
         foreach ($hours as $i => $hh) if ($h >= $hh) $slot = $i;
         if ($slot === null && !$force) return [];
-        $slot ??= 0;
+        $slot = $forceSlot ?? $slot ?? 0;
         $slotKey = date('Ymd') . '-' . $slot;
         if (!$force && setting('fb_last_slot') === $slotKey) return [];
         if (Db::val("SELECT COUNT(*) FROM apify_runs WHERE status IN ('READY', 'RUNNING')") > 0) return [];
@@ -130,13 +141,13 @@ final class Apify
         if ($slot === 0) {
             $budget = $daily * (count($hours) > 1 ? 0.7 : 1.0);
             $n = self::itemsFor('search', $budget);
-            if ($n < 6) return ['budget insuffisant aujourd\'hui'];
+            if ($n < 6) { set_setting('apify_error', 'budget du jour insuffisant (' . number_format($budget, 2) . ' $)'); return []; }
             $kws = self::keywords();
             $nKw = min(count($kws), max(1, intdiv($n, 3)));     // au moins 3 publications par mot-clé
             $kws = self::rotate('fb_kw_cursor', $kws, $nKw);
             return array_values(array_filter([self::start('search', $actors['search'], [
                 'keywords' => $kws,
-                'afterDate' => '2 days',
+                'afterDate' => 'last_week',   // seules valeurs admises : anytime, last_week, last_month, this_year
                 'maxPosts' => max(3, intdiv($n, $nKw)),
                 'countryCode' => 'mu',
             ], $n, $budget, ['keywords' => $kws])]));

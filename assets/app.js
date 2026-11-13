@@ -494,6 +494,7 @@ async function renderSettings() {
       <form class="carte" id="apify">
         <p><span class="voyant ${d.apify.set ? (d.apify.error ? 'souci' : 'ok') : ''}"></span>${d.apify.set ? `Branché. ${usd(d.apify.spent)} dépensés sur ${usd(d.apify.cap_usd)} ce mois, ${d.apify.posts_month} publications lues.` : 'Pas encore branché.'}</p>
         ${d.apify.error ? `<p class="aide" style="color:var(--canne)">${esc(d.apify.error)}</p>` : ''}
+        ${d.apify.set ? '<button type="button" class="btn plein" id="fbrun" style="margin:10px 0 6px">Lancer une recherche Facebook maintenant</button><p class="aide">Utilise une partie du budget du jour. Les annonces arrivent dans l\'application 5 à 20 minutes plus tard.</p>' : ''}
         <p class="aide">Les groupes et pages publics sont lus par Apify, sans jamais utiliser ton compte Facebook. Le forfait gratuit suffit pour démarrer.</p>
         <ol class="etapes petit">
           <li>Crée un compte gratuit sur <a href="https://console.apify.com/sign-up" target="_blank" rel="noopener">console.apify.com</a>.</li>
@@ -536,6 +537,12 @@ async function renderSettings() {
 
   const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
   on('pon', async () => { try { await enablePush(); toast('Notifications activées'); renderSettings(); } catch (e) { toast(e.message); } });
+  on('fbrun', async () => {
+    const b = document.getElementById('fbrun');
+    b.disabled = true;
+    try { const r = await api('fb_run', { body: {} }); toast('Recherche lancée : ' + (r.started[0] || 'en cours')); } catch (e) { toast(e.message); }
+    b.disabled = false;
+  });
   on('ptest', async () => { try { const r = await api('push_test', { body: {} }); toast(r.sent_to ? 'Envoyée. Elle arrive dans quelques secondes.' : 'Échec de l\'envoi. ' + (r.error || '')); } catch (e) { toast(e.message); } });
   on('out', async () => { await api('logout', { body: {} }); renderLogin(); });
   document.getElementById('nmin').onchange = async (e) => { await api('settings', { body: { notify_min: +e.target.value } }); toast('Seuil enregistré'); };
