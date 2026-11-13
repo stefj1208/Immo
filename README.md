@@ -8,7 +8,7 @@ Application : <https://immo.ile-maurice.site>
 
 ## Ce que fait l'application
 
-- **Collecte** toutes les 20 minutes sur les sites d'annonces lisibles, et trois
+- **Collecte** toutes les 20 minutes sur les sites d'annonces lisibles, et deux
   fois par jour sur Facebook (via Apify, uniquement du contenu public, sans
   compte Facebook).
 - **Trie** chaque annonce selon quatre recherches : appartement et maison à pied

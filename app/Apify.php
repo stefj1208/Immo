@@ -13,17 +13,11 @@ final class Apify
         'pages' => 'apify~facebook-posts-scraper',
     ];
 
+    // Larges à dessein : une recherche couvre tous les groupes publics de Maurice d'un coup.
     public const KEYWORDS = [
-        'terrain à vendre Grand Baie', 'maison à vendre Grand Baie', 'appartement à vendre Grand Baie',
-        'terrain à vendre Pereybère', 'maison à vendre Pereybère', 'appartement à vendre Pereybère',
-        'terrain à vendre Trou aux Biches', 'maison à vendre Trou aux Biches', 'appartement à vendre Trou aux Biches',
-        'terrain à vendre Cap Malheureux', 'maison à vendre Cap Malheureux', 'terrain à vendre Mont Choisy',
-        'terrain à vendre Pointe aux Canonniers', 'maison à vendre Pointe aux Canonniers', 'terrain à vendre Bain Boeuf',
-        'terrain à vendre Anse la Raie', 'terrain agricole à vendre nord', 'terrain agricole Pamplemousses',
-        'terrain agricole Solitude', 'terrain agricole Cottage', 'terrain agricole Amaury', 'terrain agricole Triolet',
-        'terrain agricole Goodlands', 'terrain agricole Mapou', 'land for sale Grand Baie', 'land for sale Pereybere',
-        'house for sale Grand Baie', 'apartment for sale Grand Baie', 'agricultural land for sale north Mauritius',
-        'terrain agricole Petit Raffray', 'terrain agricole Fond du Sac', 'terrain agricole Plaine des Papayes',
+        'à vendre Grand Baie', 'à vendre Pereybère', 'à vendre Trou aux Biches', 'à vendre Cap Malheureux',
+        'à vendre Pointe aux Canonniers', 'à vendre Mont Choisy', 'à vendre Bain Boeuf', 'à vendre Anse la Raie',
+        'terrain agricole à vendre', 'terrain à vendre nord', 'for sale Grand Baie', 'land for sale Pereybere',
     ];
 
     public static function ready(): bool
@@ -44,7 +38,7 @@ final class Apify
     }
 
     public static function monthKey(): string { return 'apify_used_' . date('Ym'); }
-    public static function cap(): int { return (int)setting('apify_month_cap', '1500'); }
+    public static function cap(): int { return (int)setting('apify_month_cap', '1200'); }
     public static function used(): int { return (int)setting(self::monthKey(), '0'); }
     public static function remaining(): int { return max(0, self::cap() - self::used()); }
 
@@ -64,9 +58,15 @@ final class Apify
 
     // ---------------------------------------------------------------- lancement
 
+    /**
+     * Deux passages par jour, un seul lancement Apify chacun :
+     *  - le matin, recherche par mots-clés dans tous les groupes publics (le meilleur rapport signal / coût) ;
+     *  - le soir, un jour sur deux les pages d'agents, l'autre jour le fil des groupes suivis.
+     * Le budget du mois est réparti également sur les passages restants.
+     */
     private static function startDue(bool $force): array
     {
-        $hours = array_map('intval', explode(',', (string)setting('fb_hours', '8,13,20')));
+        $hours = array_map('intval', explode(',', (string)setting('fb_hours', '8,19')));
         sort($hours);
         $h = (int)date('G');
         $slot = null;
@@ -77,54 +77,39 @@ final class Apify
         if (Db::val("SELECT COUNT(*) FROM apify_runs WHERE status IN ('READY', 'RUNNING')") > 0) return [];
 
         $remaining = self::remaining();
-        if ($remaining < 8) {
-            set_setting('fb_last_slot', $slotKey);
-            return ['plafond mensuel atteint'];
-        }
-        $daysLeft = max(1, (int)date('t') - (int)date('j') + 1);
-        $slotBudget = max(8, (int)floor($remaining / ($daysLeft * count($hours))));
-        $actors = self::actors();
-        $started = [];
-
-        // 1. Recherche par mots-clés dans tous les groupes publics : le meilleur rapport signal / coût.
-        $searchBudget = min($slotBudget, 36);
-        $nKw = max(2, min(6, intdiv($searchBudget, 6)));
-        $kws = self::rotate('fb_kw_cursor', self::keywords(), $nKw);
-        $started[] = self::start('search', $actors['search'], [
-            'keywords' => $kws,
-            'afterDate' => '3 days',
-            'maxPosts' => max(3, intdiv($searchBudget, $nKw)),
-            'countryCode' => 'mu',
-        ], $searchBudget, ['keywords' => $kws]);
-        $rest = $slotBudget - $searchBudget;
-
-        // 2. Pages d'agents : une fois par jour, quand le budget le permet.
-        if ($rest >= 12 && ($slot === 0 || $force)) {
-            $pages = self::rotate('fb_page_cursor', self::sourceUrls('fb_page'), max(3, min(10, intdiv($rest, 4))));
-            if ($pages) {
-                $n = min($rest, count($pages) * 3);
-                $started[] = self::start('pages', $actors['pages'], [
-                    'startUrls' => array_map(fn($u) => ['url' => $u], $pages),
-                    'resultsLimit' => 3,
-                    'onlyPostsNewerThan' => '3 days',
-                ], $n, ['urls' => $pages]);
-                $rest -= $n;
-            }
-        }
-        // 3. Fil chronologique des groupes prioritaires, avec le budget restant.
-        if ($rest >= 10) {
-            $groups = self::rotate('fb_group_cursor', self::sourceUrls('fb_group'), max(1, min(6, intdiv($rest, 10))));
-            if ($groups) {
-                $started[] = self::start('groups', $actors['groups'], [
-                    'startUrls' => array_map(fn($u) => ['url' => $u], $groups),
-                    'resultsLimit' => max(5, intdiv($rest, count($groups))),
-                    'viewOption' => 'CHRONOLOGICAL',
-                    'onlyPostsNewerThan' => '2 days',
-                ], $rest, ['urls' => $groups]);
-            }
-        }
         set_setting('fb_last_slot', $slotKey);
-        return array_values(array_filter($started));
+        if ($remaining < 8) return ['plafond mensuel atteint'];
+        $daysLeft = max(1, (int)date('t') - (int)date('j') + 1);
+        $budget = max(8, (int)floor($remaining / ($daysLeft * count($hours))));
+        $actors = self::actors();
+
+        if (($slot ?? 0) === 0) {
+            $nKw = max(2, min(6, intdiv($budget, 4)));
+            $kws = self::rotate('fb_kw_cursor', self::keywords(), $nKw);
+            return array_values(array_filter([self::start('search', $actors['search'], [
+                'keywords' => $kws,
+                'afterDate' => '2 days',
+                'maxPosts' => max(3, intdiv($budget, $nKw)),
+                'countryCode' => 'mu',
+            ], $budget, ['keywords' => $kws])]));
+        }
+
+        if ((int)date('z') % 2 === 0) {
+            $pages = self::rotate('fb_page_cursor', self::sourceUrls('fb_page'), max(3, min(12, intdiv($budget, 2))));
+            if ($pages) return array_values(array_filter([self::start('pages', $actors['pages'], [
+                'startUrls' => array_map(fn($u) => ['url' => $u], $pages),
+                'resultsLimit' => max(1, intdiv($budget, count($pages))),
+                'onlyPostsNewerThan' => '3 days',
+            ], $budget, ['urls' => $pages])]));
+        }
+        $groups = self::rotate('fb_group_cursor', self::sourceUrls('fb_group'), max(1, min(5, intdiv($budget, 6))));
+        if (!$groups) return [];
+        return array_values(array_filter([self::start('groups', $actors['groups'], [
+            'startUrls' => array_map(fn($u) => ['url' => $u], $groups),
+            'resultsLimit' => max(4, intdiv($budget, count($groups))),
+            'viewOption' => 'CHRONOLOGICAL',
+            'onlyPostsNewerThan' => '2 days',
+        ], $budget, ['urls' => $groups])]));
     }
 
     public static function keywords(): array
@@ -153,7 +138,7 @@ final class Apify
 
     private static function start(string $recipe, string $actor, array $input, int $maxItems, array $meta): ?string
     {
-        $r = self::api('/acts/' . rawurlencode($actor) . '/runs?maxItems=' . max(1, $maxItems) . '&timeout=600&memory=1024', ['body' => $input]);
+        $r = self::api('/acts/' . rawurlencode($actor) . '/runs?maxItems=' . max(1, $maxItems) . '&maxTotalChargeUsd=0.25&timeout=600', ['body' => $input]);
         if ($r['code'] >= 300 || empty($r['data']['data']['id'])) {
             $msg = "$recipe : " . ($r['data']['error']['message'] ?? ('HTTP ' . $r['code'] . ' ' . $r['error']));
             set_setting('apify_error', Text::cut($msg, 220) . ' (' . date('d/m H:i') . ')');
@@ -246,6 +231,7 @@ final class Apify
             }
             return null;
         };
+        if (($it['isRelevant'] ?? null) === false) return null;
         $text = (string)($first(['text', 'message', 'postText', 'post_text', 'content', 'body', 'description', 'caption']) ?? '');
         if (mb_strlen($text) < 25) return null;
         // Dans les groupes généralistes, on ne garde que ce qui parle d'immobilier.
@@ -285,7 +271,7 @@ final class Apify
             'cap' => self::cap(),
             'error' => setting('apify_error'),
             'last' => Db::all('SELECT recipe, status, items, started_at FROM apify_runs ORDER BY started_at DESC LIMIT 6'),
-            'hours' => setting('fb_hours', '8,13,20'),
+            'hours' => setting('fb_hours', '8,19'),
         ];
     }
 }

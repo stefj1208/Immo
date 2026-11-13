@@ -481,17 +481,17 @@ async function renderSettings() {
         <p class="aide">Les groupes et pages publics sont lus par Apify, sans jamais utiliser ton compte Facebook. Le forfait gratuit suffit pour démarrer.</p>
         <ol class="etapes petit">
           <li>Crée un compte gratuit sur <a href="https://console.apify.com/sign-up" target="_blank" rel="noopener">console.apify.com</a>.</li>
-          <li>Ouvre Settings, puis API &amp; Integrations, et copie le jeton « Personal API token ».</li>
+          <li>Ouvre <a href="https://console.apify.com/settings/integrations" target="_blank" rel="noopener">console.apify.com/settings/integrations</a> et copie le jeton de la section « Personal API tokens ».</li>
           <li>Colle-le ci-dessous.</li>
         </ol>
         <label for="atok">Jeton Apify</label>
         <input id="atok" type="password" autocomplete="off" placeholder="${d.apify.set ? 'Déjà enregistré. Colle un nouveau jeton pour le remplacer.' : 'apify_api_…'}">
         <label for="acap">Publications lues par mois, au maximum</label>
         <input id="acap" type="number" inputmode="numeric" min="0" step="100" value="${d.apify.cap}">
-        <p class="aide">C'est ton garde-fou de dépense. 1 500 tient à peu près dans le crédit gratuit mensuel ; au-delà, la lecture s'arrête jusqu'au mois suivant.</p>
+        <p class="aide">C'est ton garde-fou de dépense. 1 200 reste dans le crédit gratuit de 5 $ par mois ; une fois atteint, Facebook n'est plus lu jusqu'au mois suivant, les sites continuent.</p>
         <label for="akw">Recherches lancées dans les groupes</label>
         <textarea id="akw" style="min-height:130px">${esc(d.fb_keywords)}</textarea>
-        <p class="aide">Une par ligne. Elles tournent à chaque passage, trois fois par jour.</p>
+        <p class="aide">Une par ligne. Facebook est lu deux fois par jour : recherches le matin, pages d'agents ou groupes suivis le soir (heure de Maurice 8 h et 19 h).</p>
         <button class="btn plein second" style="margin-top:12px">Enregistrer</button>
       </form>
 
