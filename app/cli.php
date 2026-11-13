@@ -32,6 +32,7 @@ switch ($cmd) {
         Db::pdo();
         $n = Sources::seed();
         Push::keys();
+        echo 'Version ' . APP_VERSION . ' · commit ' . substr(trim((string)@file_get_contents(ROOT . '/.git/refs/heads/main')), 0, 7) . "\n";
         echo "Données : " . data_dir() . "\n";
         echo "Sources ajoutées : $n (total " . Db::val('SELECT COUNT(*) FROM sources') . ")\n";
         if (!setting('access_hash') || in_array('--new-key', $arg, true)) echo "CLE D'ACCES : " . new_access_key() . "\n";
@@ -53,32 +54,21 @@ switch ($cmd) {
         $urls = [];
         $rx = [];
         foreach ($lines as $l) { [$u, $r] = array_pad(preg_split('/\s+/', $l, 2), 2, null); $urls[] = $u; $rx[$u] = $r; }
+        // Sortie compacte : une ligne par page de liste, trois par fiche d'essai.
         foreach (Http::many($urls, 6, ['timeout' => 20]) as $u => $r) {
-            echo "\n== $u -> HTTP {$r['code']} {$r['error']} (" . strlen($r['body']) . " o)\n";
-            if ($r['code'] !== 200 || $r['body'] === '') { echo '  ' . Text::cut(trim(preg_replace('/\s+/', ' ', strip_tags($r['body']))), 160) . "\n"; continue; }
+            $short = Text::cut(preg_replace('~^https?://(www\.)?~', '', $u), 70);
+            if ($r['code'] !== 200 || $r['body'] === '') { echo "✗ $short -> HTTP {$r['code']} {$r['error']}\n"; continue; }
             if (($rx[$u] ?? '') === 'try') {
                 $raw = Extract::fromHtml($r['body'], $u);
                 $k = Classify::kind($raw['title'], $raw['text'], $u);
                 $g = Geo::detect($raw['title'] . ' ' . $raw['location'] . ' ' . str_replace(['-', '/'], ' ', (string)parse_url($u, PHP_URL_PATH)), mb_substr($raw['text'], 0, 1500));
                 $ar = Text::areas($raw['title'] . "\n" . mb_substr($raw['text'], 0, 2500), $k);
-                echo "  titre: {$raw['title']}\n  nature: $k · zone: " . json_encode($g, JSON_UNESCAPED_UNICODE) . ' · prix: ' . json_encode($raw['price']) . ' · surfaces: ' . json_encode($ar) . " · ch: {$raw['beds']} · tel: {$raw['phone']} · photos: " . count($raw['photos']) . "\n  texte: " . Text::cut(preg_replace('/\s+/', ' ', $raw['text']), 260) . "\n";
+                echo "T $short\n   « " . Text::cut($raw['title'], 70) . " » $k · {$g['zone']} · prix " . ($raw['price']['amount'] ?? '-') . '/' . ($raw['price']['unit'] ?? '') . " · T{$ar['land']} H{$ar['built']} · ch {$raw['beds']} · tel {$raw['phone']} · " . count($raw['photos']) . " photos\n   " . Text::cut(preg_replace('/\s+/', ' ', $raw['text']), 150) . "\n";
                 continue;
             }
-            $p = Extract::probe($r['body'], $u);
-            echo 'titre « ' . Text::cut($p['title'], 70) . ' » · liens ' . $p['links_total'] . ' · JSON-LD ' . json_encode($p['jsonld_types']) . "\n";
-            echo implode("\n", array_slice($p['shapes'], 0, 7)) . "\n";
-            $nav = [];
-            if (preg_match_all('~<a\b[^>]*?\bhref\s*=\s*(["\'])(.*?)\1~is', $r['body'], $m)) {
-                foreach ($m[2] as $h) {
-                    $a = Http::absolute($h, $u);
-                    if ($a && preg_match('~(vente|vendre|sale|acheter|achat|buy|terrain|land|annonce|propert|bien)~i', $a)) $nav[preg_replace('~\d+~', 'N', $a)] = $a;
-                }
-            }
-            echo '  nav: ' . implode("\n  nav: ", array_slice(array_values($nav), 0, 9)) . "\n";
-            if (!empty($rx[$u])) {
-                $links = Extract::links($r['body'], $u, $rx[$u]);
-                echo '  motif « ' . $rx[$u] . ' » : ' . count($links) . ' liens · ' . implode(' · ', array_slice($links, 0, 2)) . "\n";
-            }
+            $n = !empty($rx[$u]) ? count(Extract::links($r['body'], $u, $rx[$u])) : -1;
+            echo ($n > 0 ? '✓' : '?') . " $short -> " . ($n >= 0 ? "$n fiches" : 'liens ' . Extract::probe($r['body'], $u)['links_total']) . "\n";
+            if ($n <= 0) echo '   ' . implode("\n   ", array_slice(Extract::probe($r['body'], $u)['shapes'], 0, 4)) . "\n";
         }
         break;
 

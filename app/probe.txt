@@ -1,5 +1,4 @@
 https://www.propertycloud.mu/houses-for-sale/north propertycloud\.mu/(fr/a-vendre|for-sale)/[a-z-]+-[a-z]+\d+$
-https://www.lexpressproperty.com/
 https://www.propertymap.mu/fr
 https://www.expat.com/fr/immobilier/afrique/ile-maurice/terrains-a-vendre.html expat\.com/fr/immobilier/afrique/ile-maurice/4[234]-[a-z-]+/\d+-[^/]+\.html$
 https://www.expat.com/fr/immobilier/afrique/ile-maurice/a-vendre.html?page=2 expat\.com/fr/immobilier/afrique/ile-maurice/4[234]-[a-z-]+/\d+-[^/]+\.html$
