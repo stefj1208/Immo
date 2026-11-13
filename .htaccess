@@ -1,6 +1,6 @@
 # Immo Maurice — règles serveur
 Options -Indexes
-DirectoryIndex index.html
+DirectoryIndex index.html index.php
 
 # Rien de caché ni de technique n'est servi
 RedirectMatch 404 (^|/)(\.git|app|data|tests)(/|$)
