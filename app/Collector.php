@@ -12,6 +12,9 @@ final class Collector
         if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) return ['skipped' => 'un passage est déjà en cours'];
 
         $start = microtime(true);
+        // Après une mise à jour, la liste des sources de départ est resynchronisée toute seule.
+        $sig = md5_file(__DIR__ . '/sources.sites.php') . md5_file(__DIR__ . '/sources.facebook.php');
+        if (setting('seed_sig') !== $sig) { Sources::seed(); set_setting('seed_sig', $sig); }
         $force = $force || setting('run_now') === '1';
         if (setting('run_now') === '1') set_setting('run_now', null);
         Db::run('INSERT INTO runs(started_at) VALUES(?)', [now()]);
