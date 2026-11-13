@@ -1,0 +1,42 @@
+https://www.propertycloud.mu/houses-for-sale/north propertycloud\.mu/(fr/a-vendre|for-sale)/[a-z-]+-[a-z]+\d+$
+https://www.propertycloud.mu/agricultural-land-for-sale/north?page=2 propertycloud\.mu/(fr/a-vendre|for-sale)/[a-z-]+-[a-z]+\d+$
+https://www.propertycloud.mu/for-sale/agricultural-land-lndr319759
+https://www.lexpressproperty.com/fr/acheter-ile-maurice/tout/
+https://www.expat.com/fr/immobilier/afrique/ile-maurice/44-terrains-a-vendre/ expat\.com/fr/immobilier/afrique/ile-maurice/4[234]-[a-z-]+/\d+-[^/]+\.html$
+https://www.expat.com/fr/immobilier/afrique/ile-maurice/44-terrains-a-vendre/798959-a-vendre-portion-de-terrain-pres-de-la-mer-poudre-dor-hamlet.html
+https://real-estate-mauritius.mu/en/buy/ real-estate-mauritius\.mu/en/buy/[^/]+-\d+/?$
+https://www.propertymap.mu/fr
+https://www.fmimmobilier.com/fr/nord/biens-en-vente.html
+https://www.primmo.mu/achat/maison-a-vendre-ile-maurice
+https://www.proimmobilier-mauritius.com/
+https://myimmomauritius.com/
+https://www.villa-vie.com/
+https://www.astervender.mu/petites-annonces
+https://mu.green-acres.com/maison-a-vendre
+https://www.pamgolding.mu/fr/terrains-a-vendre-ile-maurice.html
+https://parklane.mu/
+https://www.decordier-immobilier.mu/fr/
+https://ile-maurice.nestenn.com/
+https://engelvoelkers.com/mu/fr
+https://www.jlsk-group.com/
+https://www.mauritiusproperty.org/
+https://www.immobiliers.mu/
+https://www.squaremeters.mu/
+https://www.lacase.mu/
+https://www.mega.mu/
+https://www.seeff.mu/
+https://www.remax.mu/
+https://www.century21.mu/
+https://www.ofim.mu/
+https://www.horizon.mu/
+https://www.barnes-mauritius.com/
+https://www.mubazar.com/
+https://www.locanto.mu/
+https://www.petitesannonces.mu/
+https://www.ledefimedia.info/
+https://www.immo.mu/
+https://www.realty.mu/
+https://www.property.mu/
+https://www.landmauritius.com/
+https://www.adsafrica.mu/
+https://www.clicanoo.mu/

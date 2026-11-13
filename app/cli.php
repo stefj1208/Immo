@@ -39,7 +39,39 @@ switch ($cmd) {
         break;
 
     case 'key':
-        echo "CLE D'ACCES : " . new_access_key() . "\n";
+        if (!empty($arg[0]) && strlen($arg[0]) >= 16) {   // clé fournie : enregistrée telle quelle
+            set_setting('access_hash', password_hash($arg[0], PASSWORD_DEFAULT));
+            Db::run('DELETE FROM sessions');
+            echo "Clé d'accès enregistrée.\n";
+        } else {
+            echo "CLE D'ACCES : " . new_access_key() . "\n";
+        }
+        break;
+
+    case 'probe-file':
+        $lines = array_filter(array_map('trim', file($arg[0] ?? (__DIR__ . '/probe.txt')) ?: []), fn($l) => $l !== '' && $l[0] !== '#');
+        $urls = [];
+        $rx = [];
+        foreach ($lines as $l) { [$u, $r] = array_pad(preg_split('/\s+/', $l, 2), 2, null); $urls[] = $u; $rx[$u] = $r; }
+        foreach (Http::many($urls, 6, ['timeout' => 20]) as $u => $r) {
+            echo "\n== $u -> HTTP {$r['code']} {$r['error']} (" . strlen($r['body']) . " o)\n";
+            if ($r['code'] !== 200 || $r['body'] === '') continue;
+            $p = Extract::probe($r['body'], $u);
+            echo 'titre « ' . Text::cut($p['title'], 70) . ' » · liens ' . $p['links_total'] . ' · JSON-LD ' . json_encode($p['jsonld_types']) . "\n";
+            echo implode("\n", array_slice($p['shapes'], 0, 7)) . "\n";
+            $nav = [];
+            if (preg_match_all('~<a\b[^>]*?\bhref\s*=\s*(["\'])(.*?)\1~is', $r['body'], $m)) {
+                foreach ($m[2] as $h) {
+                    $a = Http::absolute($h, $u);
+                    if ($a && preg_match('~(vente|vendre|sale|acheter|achat|buy|terrain|land|annonce|propert|bien)~i', $a)) $nav[preg_replace('~\d+~', 'N', $a)] = $a;
+                }
+            }
+            echo '  nav: ' . implode("\n  nav: ", array_slice(array_values($nav), 0, 9)) . "\n";
+            if (!empty($rx[$u])) {
+                $links = Extract::links($r['body'], $u, $rx[$u]);
+                echo '  motif « ' . $rx[$u] . ' » : ' . count($links) . ' liens · ' . implode(' · ', array_slice($links, 0, 2)) . "\n";
+            }
+        }
         break;
 
     case 'tick':
