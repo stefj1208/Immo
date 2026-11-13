@@ -1,5 +1,5 @@
 /* Immo Maurice — hors ligne et notifications */
-const CACHE = 'immo-v2';
+const CACHE = 'immo-v3';
 const SHELL = ['./', 'index.html', 'assets/app.css?v=2', 'assets/app.js?v=2', 'assets/icon-192.png', 'manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
@@ -29,7 +29,7 @@ self.addEventListener('push', (e) => {
   e.waitUntil((async () => {
     let items = [];
     try {
-      const res = await fetch('api/?a=push_pending', { credentials: 'same-origin', cache: 'no-store' });
+      const res = await fetch('api/index.php?a=push_pending', { credentials: 'same-origin', cache: 'no-store' });
       if (res.ok) items = await res.json();
     } catch (err) { /* hors ligne : message générique ci-dessous */ }
     if (!Array.isArray(items) || !items.length) items = [{ title: 'Nouvelles annonces', body: 'Ouvre Immo Maurice pour les voir.', tag: 'generique', url: './#/' }];

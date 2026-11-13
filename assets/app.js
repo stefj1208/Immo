@@ -67,7 +67,7 @@ async function api(action, { params = {}, body } = {}) {
   const qs = new URLSearchParams({ a: action, ...params }).toString();
   let res;
   try {
-    res = await fetch('api/?' + qs, body !== undefined
+    res = await fetch('api/index.php?' + qs, body !== undefined
       ? { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-Immo': '1' }, body: JSON.stringify(body) }
       : { credentials: 'same-origin' });
   } catch (e) {

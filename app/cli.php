@@ -125,10 +125,12 @@ switch ($cmd) {
     case 'selftest':
         // Le site répond-il correctement de l'extérieur, et les dossiers techniques sont-ils fermés ?
         $base = rtrim($arg[0] ?? 'https://immo.ile-maurice.site', '/');
-        $want = ['/' => 200, '/assets/app.js?v=2' => 200, '/manifest.webmanifest' => 200, '/sw.js' => 200, '/api/?a=list' => 401,
+        $want = ['/' => 200, '/assets/app.js?v=2' => 200, '/manifest.webmanifest' => 200, '/sw.js' => 200, '/api/index.php?a=list' => 401, '/api/?a=list' => 401,
                  '/app/cli.php' => 403, '/app/bootstrap.php' => 403, '/.git/config' => 404, '/data/' => 404, '/README.md' => 403, '/tests/run.php' => 403];
+        echo 'commit ' . substr(trim((string)@file_get_contents(ROOT . '/.git/refs/heads/main')), 0, 7) . ' · ' . date('H:i:s') . "\n";
         foreach ($want as $path => $code) {
             $r = Http::get($base . $path, ['timeout' => 15]);
+            if (str_starts_with($path, '/api/') && $r['code'] !== $code) echo '   ' . Text::cut(trim(preg_replace('/\s+/', ' ', strip_tags($r['body']))), 140) . "\n";
             $ok = $r['code'] === $code || ($code >= 403 && in_array($r['code'], [403, 404], true));
             echo ($ok ? '✓' : '✗') . " $path -> {$r['code']} (attendu $code) {$r['error']}" . ($path === '/' ? ' · ' . (str_contains($r['body'], 'Immo Maurice') ? 'page Immo Maurice' : 'AUTRE PAGE : ' . Text::cut(strip_tags($r['body']), 80)) : '') . "\n";
         }
